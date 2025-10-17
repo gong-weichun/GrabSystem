@@ -1,0 +1,16 @@
+=== 程序日志开始: 2025-09-20 18:58:28.593007 ===
+[2025-10-10 16:36:50] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:36:53] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:36:56] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:36:59] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:40:41] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:40:44] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:40:48] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:40:51] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-10 16:40:54] [INFO] 线程执行异常，异常信息为：can only concatenate str (not "Entry") to str
+[2025-10-11 16:39:49] [INFO] 线程执行异常，异常信息为：failed to do request: Get "https://tkglobal.melon.com/tktapi/glb/product/prodKey.json?callback=scheduleList8&prodId=211984&scheduleNo=100001&v=1&_=1760171982363": dial tcp 211.54.252.92:25510: connectex: No connection could be made because the target machine actively refused it.
+[2025-10-11 16:40:46] [INFO] 线程执行异常，异常信息为：failed to do request: Get "https://tkglobal.melon.com/tktapi/glb/product/prodKey.json?callback=scheduleList8&prodId=211984&scheduleNo=100001&v=1&_=1760172039060": dial tcp 211.54.252.92:25510: connectex: No connection could be made because the target machine actively refused it.
+[2025-10-11 16:42:14] [INFO] 线程执行异常，异常信息为：failed to do request: Get "https://tkglobal.melon.com/tktapi/glb/product/prodKey.json?callback=scheduleList8&prodId=211984&scheduleNo=100001&v=1&_=1760172127955": dial tcp 211.54.252.92:25510: connectex: No connection could be made because the target machine actively refused it.
+[2025-10-11 16:46:37] [INFO] 开始...
+[2025-10-11 16:51:59] [INFO] 开始...
+[2025-10-11 16:58:26] [INFO] 开始...
