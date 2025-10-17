@@ -64,6 +64,7 @@ class UiWindow:
         frame_output.pack(padx=10, pady=5, fill="both", expand=True)
 
         tk.Label(frame_output, text="日志输出:", bg="#f5f5f5").pack(anchor="w")
+        self.text_output = tk.Entry(root)
         self.text_output = scrolledtext.ScrolledText(frame_output, width=70, height=8, font=("Consolas", 10))
         self.text_output.pack(fill="both", expand=True)
 
