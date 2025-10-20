@@ -10,9 +10,9 @@ class UiWindow:
     def start_ui_task(self):
         threading.Thread(target=self.set_ui).start()
 
-    def __init__(self):
+    #def __init__(self):
         # 在初始化方法中定义 text_output
-        self.text_output = None  # 或者创建实际的控件
+        #self.text_output = None  # 或者创建实际的控件
     def set_ui(self):
 
         root = tk.Tk()
