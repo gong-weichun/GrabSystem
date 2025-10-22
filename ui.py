@@ -1,3 +1,4 @@
+import datetime
 import time
 import tkinter as tk
 from tkinter import scrolledtext
@@ -7,17 +8,23 @@ import global_resources
 
 
 class UiWindow:
+    _instance = None  # 用来保存当前UI实例
     def start_ui_task(self):
         threading.Thread(target=self.set_ui).start()
 
+<<<<<<< HEAD
     #def __init__(self):
+=======
+    def __init__(self):
+        UiWindow._instance = self  # 自动记录实例
+>>>>>>> 5d1098136761536f99278046add7bc63012e3443
         # 在初始化方法中定义 text_output
         #self.text_output = None  # 或者创建实际的控件
     def set_ui(self):
 
         root = tk.Tk()
         root.title("主界面")
-        root.geometry("700x500")
+        root.geometry("1000x800")
         root.configure(bg="#f5f5f5")
 
         # ===== 顶部：用户名和密码 =====
@@ -29,7 +36,7 @@ class UiWindow:
         self.entry_username.grid(row=0, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="EventID:", bg="#f5f5f5").grid(row=0, column=2, sticky="w", padx=10, pady=5)
-        self.entry_eventid = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="211984"))
+        self.entry_eventid = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="212063"))
         self.entry_eventid.grid(row=0, column=3, padx=10, pady=5)
 
         tk.Label(frame_top, text="密码:", bg="#f5f5f5").grid(row=1, column=0, sticky="w", padx=10, pady=5)
@@ -102,7 +109,13 @@ class UiWindow:
         self.text_output.delete(1.0, tk.END)
 
     def change_text_output(self,value):
-        self.text_output.insert(tk.END,str(time.time())+"："+str(value)+"\n")
+        def _update():
+            if self.text_output:
+                self.text_output.insert(tk.END, str(datetime.datetime.now().strftime("%H:%M:%S")) + "：" + str(value) + "\n")
+                self.text_output.see(tk.END)  # 自动滚动到底部
+
+        # 使用 Tkinter 的线程安全方法
+        self.text_output.after(0, _update)
 
     def change_blStartGrab(self):
         #global_resources.MemberKey = self.entry_eventid.get()

@@ -1,9 +1,10 @@
 import random
 import tls_client
 from playwright.sync_api import sync_playwright
+from urllib.parse import urlparse
 import threading
 import time
-
+COOKIES_JSON = "cookies_for_playwright.json"
 # 配置代理池
 # -------------------------------
 proxies = [
@@ -26,21 +27,18 @@ proxies = [
 ]
 cookies={
         "_fwb": "166xWFGnpSm3zmDAWMSqxxm.1751968344908",
-        "PCID": "17535241246108694755228",
+        "PCID": "17519683452676828779915",
         "TKT_POC_ID": "WP19",
         "i18next": "EN",
-        "JSESSIONID": "5FCEDB523E90C194801D89BCA21083B4",
+        "JSESSIONID": "852D33B1CC12F1FD478206DC3987F0D4",
         "NetFunnel_ID": "WP15",
         "keyCookie_T": "1007828360",
-        "MAC_T": "\"fH2/f7duFWy4ZLwt+GBVbxDywEUCDOfjmzh3qU0mZw3fhWhXKiBixr8Nv9fvXkkkTzGCTuSSmdM3tqab4nfCPA==\"",
-        "wcs_bt": "s_322bdbd6fd48:1758192186"
+        "MAC_T": "\"fH2/f7duFWy4ZLwt+GBVb4+JDVUP7+bO+Jk3T2C9OeSF/qUYDD4hODl07igwSSghqGBu1+z3EUU5y68aSjPmtQ==\"",
+        "wcs_bt": "s_322bdbd6fd48:1761009008"
 }
 headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/116.0.5845.110 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,"
-                      "application/signed-exchange;v=b3;q=0.7",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "Accept": "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
             "Accept-Language": "en-US,en;q=0.5",
             "Connection": "keep-alive",
         }
@@ -67,7 +65,7 @@ class TLSHttpClient:
         # 发起 GET 请求
         while True:
             proxy = self.get_proxy()
-            response = self.session.get(url,proxy=proxy)
+            response = self.session.get(url)#,proxy=proxy
             if response.status_code == 200:
                 return response
             elif not self.proxies:
@@ -91,36 +89,46 @@ class TLSHttpClient:
         if not self.proxies:
             return None
         return self.proxies[0]
-    def playwright_request(self,url):
-        # 获取 Cookies 用于 Playwright
-        cookies = self.session.cookies  # dict 格式
 
-        # 转换为 Playwright 可以使用的列表格式
-        playwright_cookies = []
-        for name, value in cookies.items():
-            playwright_cookies.append({
-                "name": name,
-                "value": value,
-                # "domain": ".example.com",  # 修改为目标域
-                # "path": "/",
-                # "httpOnly": False,
-                # "secure": True,
-            })
-
-        # =====================
-        # Playwright 请求
-        # =====================
+    # ---------------------------
+    # 2️⃣ Playwright 使用 tls_client cookies
+    # ---------------------------
+    def playwright_final_page(self,url):
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=False)  # headless=True 可不显示浏览器
             context = browser.new_context()
 
-            # 设置 cookies
-            context.add_cookies(playwright_cookies)
+            # 自动迁移 tls_client cookies
+            cookies = []
+            parsed_url = urlparse(url)
+            domain = parsed_url.hostname
+            for name, value in self.session.cookies.items():
+                cookies.append({
+                    "name": name,
+                    "value": value,
+                    "domain": domain,
+                    "path": "/",
+                    "httpOnly": False,
+                    "secure": True,
+                })
+            # 在 context 创建时设置 user_agent
+            context = browser.new_context(
+                user_agent=self.session.headers.get("User-Agent", ""),
+            )
+            context.add_cookies(cookies)
 
+            # 新建页面
             page = context.new_page()
             page.goto(url)
-            #print("Playwright 页面标题:", page.title())
+            print("[playwright] Page title:", page.title())
 
             # 获取页面内容
             content = page.content()
-            #print("页面前200字符:", content[:200])
+            print(content[:500])
+
+            # 可以执行 JS
+            # result = page.evaluate("() => document.querySelector('h1').innerText")
+            # print(result)
+
+            #browser.close()
+
