@@ -3,7 +3,7 @@ import random
 import time
 import re
 from HttpClientHelper import TLSHttpClient
-from SolveCaptcha import ocr_from_base64
+#from SolveCaptcha import ocr_from_base64
 import global_resources
 from ui import UiWindow
 
@@ -69,7 +69,6 @@ def fetch_thread():
             EventID = global_resources.EventID
             scheduleNo = global_resources.ScheduleNo
             if global_resources.blStartGrab:
-                LogMessage("开始...")
                 if excuteState == 0:
                     callBack = "scheduleList8"
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/prodKey.json"
@@ -138,6 +137,7 @@ def fetch_thread():
                     if strCaptchaKey == "":  # 第一次请求时要处理验证码
                         strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/captChaImage.json?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&t=" + str(
                             int(round(time.time() * 1000)))
+                        client.playwright_final_page(strRequestUrl)
                         requestResponse = client.get(strRequestUrl)
                         if requestResponse.status_code == 200:
                             strResponseHtml = requestResponse.text
@@ -147,7 +147,7 @@ def fetch_thread():
                             if "CAPTIMAGE" in dicResponseResult:
                                 CaptchaData = dicResponseResult["CAPTDATA"]
                                 Base64Code = dicResponseResult["CAPTIMAGE"]
-                                CaptchaResult = ocr_from_base64(Base64Code)
+                                #CaptchaResult = ocr_from_base64(Base64Code)
                                 strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/checkCaptcha.json"
                                 strRequestParameter = "userCaptStr=" + CaptchaResult + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
@@ -494,7 +494,11 @@ def process_jsonp_response_robust(response_body, callback):
 u=UiWindow()
 def LogMessage(message):
     global_resources.logger.info(message)
-    u.change_text_output(message)
+    ui = UiWindow._instance
+    if ui:
+        ui.change_text_output(message)
+    else:
+        print("UI 未初始化")
 
 
 event_handler = LogMessage
