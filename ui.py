@@ -12,12 +12,8 @@ class UiWindow:
     def start_ui_task(self):
         threading.Thread(target=self.set_ui).start()
 
-<<<<<<< HEAD
-    #def __init__(self):
-=======
     def __init__(self):
         UiWindow._instance = self  # 自动记录实例
->>>>>>> 5d1098136761536f99278046add7bc63012e3443
         # 在初始化方法中定义 text_output
         #self.text_output = None  # 或者创建实际的控件
     def set_ui(self):
