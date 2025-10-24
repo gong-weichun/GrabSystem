@@ -30,7 +30,7 @@ cookies={
         "PCID": "17519683452676828779915",
         "TKT_POC_ID": "WP19",
         "i18next": "EN",
-        "JSESSIONID": "852D33B1CC12F1FD478206DC3987F0D4",
+        "JSESSIONID": "B00128A600FDB2A5B496AC0D0379105F",
         "NetFunnel_ID": "WP15",
         "keyCookie_T": "1007828360",
         "MAC_T": "\"fH2/f7duFWy4ZLwt+GBVb4+JDVUP7+bO+Jk3T2C9OeSF/qUYDD4hODl07igwSSghqGBu1+z3EUU5y68aSjPmtQ==\"",
@@ -42,6 +42,7 @@ headers = {
             "Accept-Language": "en-US,en;q=0.5",
             "Connection": "keep-alive",
         }
+
 class TLSHttpClient:
     def __init__(self):#cookies=None, headers=None, proxies=None
 
@@ -93,7 +94,7 @@ class TLSHttpClient:
     # ---------------------------
     # 2️⃣ Playwright 使用 tls_client cookies
     # ---------------------------
-    def playwright_final_page(self,url):
+    def playwright_request(self,url):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False)  # headless=True 可不显示浏览器
             context = browser.new_context()
@@ -115,11 +116,14 @@ class TLSHttpClient:
             context = browser.new_context(
                 user_agent=self.session.headers.get("User-Agent", ""),
             )
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+            )
             context.add_cookies(cookies)
 
             # 新建页面
             page = context.new_page()
-            page.goto(url)
+            page.goto(url,timeout=60000,wait_until="networkidle")
             print("[playwright] Page title:", page.title())
 
             # 获取页面内容
@@ -131,4 +135,26 @@ class TLSHttpClient:
             # print(result)
 
             #browser.close()
+
+        # ---------------------------
+        # 1️⃣ 用 Playwright 登录并获取 Cookie
+        # ---------------------------
+        def playwright_login_and_get_cookies(login_url: str):
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=False)
+                context = browser.new_context()
+                page = context.new_page()
+                page.goto(login_url)
+
+                # 🔽 （根据你的页面结构修改这里的操作）
+                page.fill("input[name='username']", "你的用户名")
+                page.fill("input[name='password']", "你的密码")
+                page.click("button[type='submit']")
+
+                page.wait_for_load_state("networkidle")  # 等待页面加载完毕
+
+                # 获取登录后的 cookies
+                cookies = context.cookies()
+                browser.close()
+                return cookies
 
