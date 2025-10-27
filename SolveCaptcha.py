@@ -7,7 +7,7 @@ import pytesseract
 import cv2
 
 # 安装Tesseract，指定项目里的 tesseract.exe
-pytesseract.pytesseract.tesseract_cmd = os.path.join("C:\\Program Files\\Tesseract-OCR", "tesseract.exe")
+#pytesseract.pytesseract.tesseract_cmd = os.path.join("C:\\Program Files\\Tesseract-OCR", "tesseract.exe")
 pytesseract.pytesseract.tesseract_cmd = os.path.join("D:\\Tesseract-OCR", "tesseract.exe")
 
 

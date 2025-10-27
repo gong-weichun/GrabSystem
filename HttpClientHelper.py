@@ -4,44 +4,15 @@ from playwright.sync_api import sync_playwright
 from urllib.parse import urlparse
 import threading
 import time
+
+import global_resources
+
 COOKIES_JSON = "cookies_for_playwright.json"
 # 配置代理池
 # -------------------------------
-proxies = [
-    "http://928:928@211.54.252.92:25510",
-    "http://928:928@169.214.171.225:25510",
-    "http://928:928@183.109.129.241:25510",
-    "http://928:928@220.90.167.177:25510",
-    "http://928:928@222.105.21.103:25510",
-    "http://928:928@210.126.113.136:25510",
-    "http://928:928@118.43.185.220:25510",
-    "http://928:928@175.202.27.148:25510",
-    "http://928:928@118.43.185.133:25510",
-    "http://928:928@210.126.113.248:25510",
-    "http://928:928@211.230.230.62:25510",
-    "http://928:928@222.105.68.189:25510",
-    "http://928:928@222.105.68.177:25510",
-    "http://928:928@59.2.199.151:25510",
-    "http://928:928@118.43.185.22:25510",
-    "http://928:928@211.230.223.250:25510",
-]
-cookies={
-        "_fwb": "166xWFGnpSm3zmDAWMSqxxm.1751968344908",
-        "PCID": "17519683452676828779915",
-        "TKT_POC_ID": "WP19",
-        "i18next": "EN",
-        "JSESSIONID": "852D33B1CC12F1FD478206DC3987F0D4",
-        "NetFunnel_ID": "WP15",
-        "keyCookie_T": "1007828360",
-        "MAC_T": "\"fH2/f7duFWy4ZLwt+GBVb4+JDVUP7+bO+Jk3T2C9OeSF/qUYDD4hODl07igwSSghqGBu1+z3EUU5y68aSjPmtQ==\"",
-        "wcs_bt": "s_322bdbd6fd48:1761009008"
-}
-headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
-            "Accept": "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Connection": "keep-alive",
-        }
+proxies = global_resources.proxies
+cookies=global_resources.cookies
+headers = global_resources.headers
 class TLSHttpClient:
     def __init__(self):#cookies=None, headers=None, proxies=None
 

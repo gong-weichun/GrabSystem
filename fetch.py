@@ -3,8 +3,8 @@ import random
 import time
 import re
 from HttpClientHelper import TLSHttpClient
-#from SolveCaptcha import ocr_from_base64
 import global_resources
+from SolveCaptcha import ocr_image_from_base64
 from ui import UiWindow
 
 def fetch_thread():
@@ -147,7 +147,7 @@ def fetch_thread():
                             if "CAPTIMAGE" in dicResponseResult:
                                 CaptchaData = dicResponseResult["CAPTDATA"]
                                 Base64Code = dicResponseResult["CAPTIMAGE"]
-                                #CaptchaResult = ocr_from_base64(Base64Code)
+                                CaptchaResult = ocr_image_from_base64(Base64Code)
                                 strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/checkCaptcha.json"
                                 strRequestParameter = "userCaptStr=" + CaptchaResult + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)

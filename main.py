@@ -1,3 +1,6 @@
+import configparser
+
+import global_resources
 from HttpClientHelper import TLSHttpClient
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
