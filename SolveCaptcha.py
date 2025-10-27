@@ -10,6 +10,7 @@ import cv2
 #pytesseract.pytesseract.tesseract_cmd = os.path.join("C:\\Program Files\\Tesseract-OCR", "tesseract.exe")
 pytesseract.pytesseract.tesseract_cmd = os.path.join("D:\\Tesseract-OCR", "tesseract.exe")
 
+<<<<<<< HEAD
 
 def ocr_image_from_base64(base64_data):
     # 1️⃣ 去掉 Base64 前缀
@@ -20,6 +21,17 @@ def ocr_image_from_base64(base64_data):
     image_bytes = base64.b64decode(base64_data)
     image = Image.open(BytesIO(image_bytes))
 
+=======
+def ocr_image_from_base64_advanced(base64_data):
+    # 1️⃣ 去掉 Base64 前缀
+    if base64_data.startswith("data:image"):
+        base64_data = base64_data.split(",")[1]
+
+    # 2️⃣ 解码并打开图片
+    image_bytes = base64.b64decode(base64_data)
+    image = Image.open(BytesIO(image_bytes))
+
+>>>>>>> 5de70d07a19437eba6a94c20c9222c95341f0dd1
     # 处理 RGBA 图片，白色背景
     if image.mode == "RGBA":
         background = Image.new("RGB", image.size, (255, 255, 255))
