@@ -11,9 +11,11 @@ for part in raw_cookie.split(';'):
     cookies[key.strip()] = value.strip()
 headers={
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+            "Referer":"https://tkglobal.melon.com/reservation/popup/onestop.htm",
             "Accept": "text/javascript, application/javascript, application/ecmascript, application/x-ecmascript, */*; q=0.01",
-            "Accept-Language": "en-US,en;q=0.5",
+            "Accept-Language": "zh-CN,zh;q=0.9",
             "Connection": "keep-alive",
+            "Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"
         }
 proxies = [
     "http://928:928@211.54.252.92:25510",
@@ -34,7 +36,7 @@ proxies = [
     "http://928:928@211.230.223.250:25510",
 ]
 MemberKey = "1007828360"
-EventID = "211834"
+EventID = "211965"
 ScheduleNo = "100001"
 user_accounts = []  # 用于存储账户名
 logger=Logger()

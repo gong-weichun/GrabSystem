@@ -137,7 +137,6 @@ def fetch_thread():
                     if strCaptchaKey == "":  # 第一次请求时要处理验证码
                         strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/captChaImage.json?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&t=" + str(
                             int(round(time.time() * 1000)))
-                        client.playwright_final_page(strRequestUrl)
                         requestResponse = client.get(strRequestUrl)
                         if requestResponse.status_code == 200:
                             strResponseHtml = requestResponse.text
@@ -149,7 +148,7 @@ def fetch_thread():
                                 Base64Code = dicResponseResult["CAPTIMAGE"]
                                 CaptchaResult = ocr_image_from_base64(Base64Code)
                                 strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/checkCaptcha.json"
-                                strRequestParameter = "userCaptStr=" + CaptchaResult + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
+                                strRequestParameter = "userCaptStr=" + CaptchaResult.lower() + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
                                 if (requestResponse.status_code == 200):
                                     strResponseHtml = requestResponse.text
@@ -175,16 +174,16 @@ def fetch_thread():
 
                         if "prodInform" in strResponseHtml:
                             dicResponseResult = json.loads(strResponseHtml)
-                            perfMainName = dicResponseResult.perfMainName
-                            prodTypeCode = dicResponseResult.prodTypeCode
-                            trafficCtrlYn = dicResponseResult.trafficCtrlYn
-                            perfTypeCode = dicResponseResult.perfTypeCode
-                            perfStartDay = dicResponseResult.perfStartDay
+                            perfMainName = dicResponseResult["prodInform"]["perfMainName"]
+                            prodTypeCode = dicResponseResult["prodInform"]["prodTypeCode"]
+                            trafficCtrlYn = dicResponseResult["prodInform"]["trafficCtrlYn"]
+                            perfTypeCode = dicResponseResult["prodInform"]["perfTypeCode"]
+                            perfStartDay = dicResponseResult["prodInform"]["perfStartDay"]
                             perfDay = perfStartDay
                             perfDate = perfStartDay
-                            flplanTypeCode = str(dicResponseResult.flplanTypeCode)
-                            scheduleTypeCode = dicResponseResult.scheduleTypeCode
-                            limitVolume = dicResponseResult.limitVolume
+                            flplanTypeCode = str(dicResponseResult["prodInform"]["flplanTypeCode"])
+                            scheduleTypeCode = dicResponseResult["prodInform"]["scheduleTypeCode"]
+                            limitVolume = dicResponseResult["prodInform"]["limitVolume"]
                             LogMessage(strResponseHtml)
                             excuteState = 4
                     else:
@@ -210,7 +209,7 @@ def fetch_thread():
                     strRequestUrl = "https://tkglobal.melon.com/tktapi_poc/performance/getProdSellState.json?v=1&callback=" + callBack
                     strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
-                    LogMessage("请求返回状态：" + requestResponse.status_code)
+                    LogMessage("请求返回状态：" + str(requestResponse.status_code))
 
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
