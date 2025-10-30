@@ -32,7 +32,7 @@ class UiWindow:
         self.entry_username.grid(row=0, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="EventID:", bg="#f5f5f5").grid(row=0, column=2, sticky="w", padx=10, pady=5)
-        self.entry_eventid = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="211965"))
+        self.entry_eventid = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="211984"))
         self.entry_eventid.grid(row=0, column=3, padx=10, pady=5)
 
         tk.Label(frame_top, text="密码:", bg="#f5f5f5").grid(row=1, column=0, sticky="w", padx=10, pady=5)

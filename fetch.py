@@ -187,13 +187,13 @@ def fetch_thread():
                             LogMessage(strResponseHtml)
                             excuteState = 4
                     else:
-                        LogMessage("请求失败，返回状态：" + requestResponse.status_code + "，再次尝试")
+                        LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
                         time.sleep(1)
                 elif excuteState == 4:  # 获得限制信息，如最多买多少票
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/informLimit.json"
                     strRequestParameter = "v=1&prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
-                    LogMessage("请求返回状态：" + requestResponse.status_code)
+                    LogMessage("请求返回状态：" + str(requestResponse.status_code))
                     if requestResponse.status_code == 200:
                         strResponseHtml = requestResponse.text
                         LogMessage(strResponseHtml)
@@ -225,7 +225,7 @@ def fetch_thread():
                         strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                         requestResponse = client.get(strRequestUrl + strRequestParameter)
                         time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
-                        LogMessage("get返回状态：" + requestResponse.status_code)
+                        LogMessage("get返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
                             strResponseHtml = requestResponse.text
@@ -236,7 +236,7 @@ def fetch_thread():
                             strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                             requestResponse = client.get(strRequestUrl + strRequestParameter)
                             time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
-                            LogMessage("get返回状态：" + requestResponse.status_code)
+                            LogMessage("get返回状态：" + str(requestResponse.status_code))
 
                             if (requestResponse.status_code == 200):
                                 strResponseHtml = requestResponse.text
@@ -249,7 +249,7 @@ def fetch_thread():
                                 strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
                                 time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
-                                LogMessage("请求返回状态：" + requestResponse.status_code)
+                                LogMessage("请求返回状态：" + str(requestResponse.status_code))
 
                                 if (requestResponse.status_code == 200):
                                     strResponseHtml = requestResponse.text
@@ -262,24 +262,24 @@ def fetch_thread():
                                     strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode
                                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                                     time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
-                                    LogMessage("post返回状态：" + requestResponse.status_code)
+                                    LogMessage("post返回状态：" + str(requestResponse.status_code))
                                     if (requestResponse.status_code == 200):
                                         strResponseHtml = requestResponse.text
                                         LogMessage(strResponseHtml)
                                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                                         seatMapListHelper = json.loads(jsonResult)  # 在这里获得座位信息
-                                        if (seatMapListHelper.seatData != None):
-                                            seatTypeCode = seatMapListHelper.seatData.da.sb[0].sbt
+                                        if (seatMapListHelper["seatData"] != None):
+                                            seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                             seatId = ""
-                                            for itemSt in seatMapListHelper.seatData.st:
+                                            for itemSt in seatMapListHelper["seatData"]["st"]:
                                                 if (seatId == ""):
-                                                    for itemSs in itemSt.ss:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
-                                                        if itemSs.sid != None:  # sid为null表示座位被选走
-                                                            seatId = itemSs.sid
+                                                    for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
+                                                        if itemSs["sid"] != None:  # sid为null表示座位被选走
+                                                            seatId = itemSs["sid"]
                                                             break
-                                                        else:
-                                                            excuteState = 7
-                                                        break
+                                                else:
+                                                    excuteState = 7
+                                                    break
                                     else:
                                         LogMessage("post请求失败")
                                 else:
@@ -294,7 +294,7 @@ def fetch_thread():
                         strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=&pocCode=" + pocCode + "&corpCodeNo="
                         requestResponse = client.post(strRequestUrl, strRequestParameter)
                         time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
-                        LogMessage("post返回状态：" + requestResponse.status_code)
+                        LogMessage("post返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
                             strResponseHtml = requestResponse.text
@@ -302,14 +302,14 @@ def fetch_thread():
 
                             jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                             seatMapListHelper = json.loads(jsonResult)  # 在这里获得座位信息
-                            if (seatMapListHelper.seatData != None):
-                                seatTypeCode = seatMapListHelper.seatData.da.sb[0].sbt
+                            if (seatMapListHelper["seatData"] != None):
+                                seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                 seatId = ""
-                                for itemSt in seatMapListHelper.seatData.st:
+                                for itemSt in seatMapListHelper["seatData"]["st"]:
                                     if (seatId == ""):
-                                        for itemSs in itemSt.ss:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
-                                            if (itemSs.sid != None):  # sid为null表示座位被选走
-                                                seatId = itemSs.sid
+                                        for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
+                                            if (itemSs["sid"] != None):  # sid为null表示座位被选走
+                                                seatId = itemSs["sid"]
                                                 break
                                             else:
                                                 callBack = "getBlockGradeSeatCountCallBack"
@@ -318,12 +318,11 @@ def fetch_thread():
                                                 requestResponse = client.get(strRequestUrl + strRequestParameter)
                                                 time.sleep(
                                                     random.uniform(requestInterval, requestInterval + 100) / 1000)
-                                                LogMessage("get返回状态：" + requestResponse.status_code)
+                                                LogMessage("get返回状态：" + str(requestResponse.status_code))
                                                 if (requestResponse.status_code == 200):
                                                     strResponseHtml = requestResponse.text
                                                     LogMessage(strResponseHtml)
-                                                    jsonResult = process_jsonp_response_robust(strResponseHtml,
-                                                                                               "/**/" + callBack)
+                                                    jsonResult = process_jsonp_response_robust(strResponseHtml,"/**/" + callBack)
                                                     excuteState = 7
                                                 else:
                                                     LogMessage("get请求失败")
@@ -340,15 +339,16 @@ def fetch_thread():
                                           + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + zamEnabled + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn \
                                           + "&netfunnel_key=&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn + "&seatId=" + seatId + "&clipSeatId=&chkcapt="
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
-                    LogMessage("返回状态：" + requestResponse.status_code)
+                    LogMessage("返回状态：" + str(requestResponse.status_code))
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
                         LogMessage(strResponseHtml)
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
-                        if ("result" in dicResponseResult & dicResponseResult["result"] == "0000"):
-                            encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
-                            excuteState = 8
+                        if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.","httpsDomain":null,"httpDomain":null}
+                            if (dicResponseResult["result"] == "0000"):
+                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
+                                excuteState = 8
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 8:
@@ -495,7 +495,7 @@ def LogMessage(message):
     global_resources.logger.info(message)
     ui = UiWindow._instance
     if ui:
-        ui.change_text_output(message)
+        ui.change_text_output(str(message))
     else:
         print("UI 未初始化")
 
