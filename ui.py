@@ -13,9 +13,8 @@ class UiWindow:
         threading.Thread(target=self.set_ui).start()
 
     def __init__(self):
-        UiWindow._instance = self  # 自动记录实例
-        # 在初始化方法中定义 text_output
-        #self.text_output = None  # 或者创建实际的控件
+        UiWindow._instance = self
+
     def set_ui(self):
 
         root = tk.Tk()
@@ -28,19 +27,19 @@ class UiWindow:
         frame_top.pack(pady=10, fill="x")
 
         tk.Label(frame_top, text="用户名:", bg="#f5f5f5").grid(row=0, column=0, sticky="w", padx=10, pady=5)
-        self.entry_username = tk.Entry(frame_top, width=40,textvariable=tk.StringVar(value="877605465@qq.com"))
+        self.entry_username = tk.Entry(frame_top, width=40, textvariable=tk.StringVar(value="877605465@qq.com"))
         self.entry_username.grid(row=0, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="EventID:", bg="#f5f5f5").grid(row=0, column=2, sticky="w", padx=10, pady=5)
-        self.entry_eventid = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="211984"))
+        self.entry_eventid = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value="211984"))
         self.entry_eventid.grid(row=0, column=3, padx=10, pady=5)
 
         tk.Label(frame_top, text="密码:", bg="#f5f5f5").grid(row=1, column=0, sticky="w", padx=10, pady=5)
-        self.entry_password = tk.Entry(frame_top, show="*", width=40,textvariable=tk.StringVar(value="gg4718910"))
+        self.entry_password = tk.Entry(frame_top, show="*", width=40, textvariable=tk.StringVar(value="gg4718910"))
         self.entry_password.grid(row=1, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="ScheduleNo:", bg="#f5f5f5").grid(row=1, column=2, sticky="w", padx=10, pady=5)
-        self.entry_scheduleno = tk.Entry(frame_top, width=20,textvariable=tk.StringVar(value="100001"))
+        self.entry_scheduleno = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value="100001"))
         self.entry_scheduleno.grid(row=1, column=3, padx=10, pady=5)
 
         # ===== 中部：按钮区 =====
@@ -49,6 +48,26 @@ class UiWindow:
 
         tk.Button(frame_buttons, text="添加用户", width=12, command=self.add_account).pack(side="left", padx=5)
         tk.Button(frame_buttons, text="清空日志", width=12, command=self.clear_output).pack(side="left", padx=5)
+
+        # ===== 滑块区 =====
+        frame_slider = tk.Frame(root, bg="#f5f5f5")
+        frame_slider.pack(pady=10)
+
+        tk.Label(frame_slider, text="延迟时间 (ms):", bg="#f5f5f5").pack(side="left", padx=5)
+        self.slider_value = tk.DoubleVar(value=50)
+
+        # 在滑块释放后自动触发更新
+        slider = tk.Scale(
+            frame_slider,
+            from_=0,
+            to=1000,
+            orient="horizontal",
+            variable=self.slider_value,
+            length=300,
+            bg="#f5f5f5",
+            command=self.on_slider_move
+        )
+        slider.pack(side="left", padx=10)
 
         # ===== 开始 / 结束按钮 =====
         frame_actions = tk.Frame(root, bg="#f5f5f5")
@@ -67,7 +86,6 @@ class UiWindow:
         frame_output.pack(padx=10, pady=5, fill="both", expand=True)
 
         tk.Label(frame_output, text="日志输出:", bg="#f5f5f5").pack(anchor="w")
-        self.text_output = tk.Entry(root)
         self.text_output = scrolledtext.ScrolledText(frame_output, width=70, height=8, font=("Consolas", 10))
         self.text_output.pack(fill="both", expand=True)
 
@@ -78,6 +96,9 @@ class UiWindow:
         tk.Label(frame_accounts, text="账户列表:", bg="#f5f5f5").pack(anchor="w")
         self.text_accounts = scrolledtext.ScrolledText(frame_accounts, width=70, height=6, font=("Consolas", 10))
         self.text_accounts.pack(fill="both", expand=True)
+
+        # 绑定释放事件（鼠标放开滑块时触发）
+        slider.bind("<ButtonRelease-1>", self.on_slider_release)
 
         root.mainloop()
 
@@ -91,31 +112,34 @@ class UiWindow:
             self.text_output.insert(tk.END, "[警告] 用户名不能为空！\n")
 
     def refresh_account_list(self):
-        """刷新账户输出框"""
         self.text_accounts.delete(1.0, tk.END)
         for idx, acc in enumerate(global_resources.user_accounts, start=1):
             self.text_accounts.insert(tk.END, f"{idx}. {acc}\n")
 
-    def login(self):
-        username = self.entry_username.get()
-        password = self.entry_password.get()
-        self.text_output.insert(tk.END, f"尝试登录 - 用户名: {username}, 密码: {password}\n")
-
     def clear_output(self):
         self.text_output.delete(1.0, tk.END)
 
-    def change_text_output(self,value):
+    def on_slider_move(self, val):
+        """拖动时显示当前值但不更新全局变量"""
+        self.change_text_output(f"当前延迟值: {float(val):.0f} (未释放)")
+
+    def on_slider_release(self, event):
+        """释放滑块后自动赋值"""
+        global_resources.TimeDelay = self.slider_value.get()
+        self.change_text_output(f"已更新 TimeDelay = {global_resources.TimeDelay:.0f}")
+
+    def change_text_output(self, value):
         def _update():
             if self.text_output:
-                self.text_output.insert(tk.END, str(datetime.datetime.now().strftime("%H:%M:%S")) + "：" + str(value) + "\n")
-                self.text_output.see(tk.END)  # 自动滚动到底部
-
-        # 使用 Tkinter 的线程安全方法
+                self.text_output.insert(
+                    tk.END,
+                    f"{datetime.datetime.now().strftime('%H:%M:%S')}：{value}\n"
+                )
+                self.text_output.see(tk.END)
         self.text_output.after(0, _update)
 
     def change_blStartGrab(self):
-        #global_resources.MemberKey = self.entry_eventid.get()
         global_resources.EventID = self.entry_eventid.get()
         global_resources.ScheduleNo = self.entry_scheduleno.get()
         global_resources.blStartGrab = not global_resources.blStartGrab
-
+        self.change_text_output(f"blStartGrab 状态切换为: {global_resources.blStartGrab}")

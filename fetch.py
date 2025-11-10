@@ -68,6 +68,7 @@ def fetch_thread():
             MemberKey = global_resources.MemberKey
             EventID = global_resources.EventID
             scheduleNo = global_resources.ScheduleNo
+            requestInterval=global_resources.TimeDelay
             if global_resources.blStartGrab:
                 if excuteState == 0:
                     callBack = "scheduleList8"
@@ -468,7 +469,7 @@ def fetch_thread():
                             LogMessage(strResponseHtml)
                 elif excuteState == 13:
                     break
-                time.sleep(random.uniform(requestInterval, requestInterval + 200) / 1000)
+                time.sleep(random.uniform(requestInterval, requestInterval + 20) / 1000)
             else:
                 time.sleep(1)
         except Exception as e:
