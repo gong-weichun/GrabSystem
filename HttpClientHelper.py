@@ -105,25 +105,25 @@ class TLSHttpClient:
 
             #browser.close()
 
-        # ---------------------------
-        # 1️⃣ 用 Playwright 登录并获取 Cookie
-        # ---------------------------
-        def playwright_login_and_get_cookies(login_url: str):
-            with sync_playwright() as p:
-                browser = p.chromium.launch(headless=False)
-                context = browser.new_context()
-                page = context.new_page()
-                page.goto(login_url)
+    # ---------------------------
+    # 1️⃣ 用 Playwright 登录并获取 Cookie
+    # ---------------------------
+    def playwright_login_and_get_cookies(self,login_url):
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context()
+            page = context.new_page()
+            page.goto(login_url)
 
-                # 🔽 （根据你的页面结构修改这里的操作）
-                page.fill("input[name='username']", "你的用户名")
-                page.fill("input[name='password']", "你的密码")
-                page.click("button[type='submit']")
+            # 🔽 （根据你的页面结构修改这里的操作）
+            page.fill("input[name='username']", "你的用户名")
+            page.fill("input[name='password']", "你的密码")
+            page.click("button[type='submit']")
 
-                page.wait_for_load_state("networkidle")  # 等待页面加载完毕
+            page.wait_for_load_state("networkidle")  # 等待页面加载完毕
 
-                # 获取登录后的 cookies
-                cookies = context.cookies()
-                browser.close()
-                return cookies
+            # 获取登录后的 cookies
+            cookies = context.cookies()
+            browser.close()
+            return cookies
 
