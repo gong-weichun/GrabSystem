@@ -31,7 +31,7 @@ class UiWindow:
         self.entry_username.grid(row=0, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="EventID:", bg="#f5f5f5").grid(row=0, column=2, sticky="w", padx=10, pady=5)
-        self.entry_eventid = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value="211984"))
+        self.entry_eventid = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value=global_resources.EventID))
         self.entry_eventid.grid(row=0, column=3, padx=10, pady=5)
 
         tk.Label(frame_top, text="密码:", bg="#f5f5f5").grid(row=1, column=0, sticky="w", padx=10, pady=5)
@@ -54,7 +54,7 @@ class UiWindow:
         frame_slider.pack(pady=10)
 
         tk.Label(frame_slider, text="延迟时间 (ms):", bg="#f5f5f5").pack(side="left", padx=5)
-        self.slider_value = tk.DoubleVar(value=50)
+        self.slider_value = tk.DoubleVar(value=400)
 
         # 在滑块释放后自动触发更新
         slider = tk.Scale(
@@ -65,7 +65,7 @@ class UiWindow:
             variable=self.slider_value,
             length=300,
             bg="#f5f5f5",
-            command=self.on_slider_move
+            # command=self.on_slider_move
         )
         slider.pack(side="left", padx=10)
 
@@ -119,9 +119,9 @@ class UiWindow:
     def clear_output(self):
         self.text_output.delete(1.0, tk.END)
 
-    def on_slider_move(self, val):
-        """拖动时显示当前值但不更新全局变量"""
-        self.change_text_output(f"当前延迟值: {float(val):.0f} (未释放)")
+    # def on_slider_move(self, val):
+    #     """拖动时显示当前值但不更新全局变量"""
+    #     self.change_text_output(f"当前延迟值: {float(val):.0f} (未释放)")
 
     def on_slider_release(self, event):
         """释放滑块后自动赋值"""

@@ -69,6 +69,7 @@ def fetch_thread():
             EventID = global_resources.EventID
             scheduleNo = global_resources.ScheduleNo
             requestInterval=global_resources.TimeDelay
+            blockId=global_resources.blockId
             if global_resources.blStartGrab:
                 if excuteState == 0:
                     callBack = "scheduleList8"
@@ -225,7 +226,6 @@ def fetch_thread():
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
                         strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                         requestResponse = client.get(strRequestUrl + strRequestParameter)
-                        time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
                         LogMessage("get返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
@@ -236,7 +236,6 @@ def fetch_thread():
                             strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/getAreaMap.json?v=1&callback=" + callBack
                             strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                             requestResponse = client.get(strRequestUrl + strRequestParameter)
-                            time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
                             LogMessage("get返回状态：" + str(requestResponse.status_code))
 
                             if (requestResponse.status_code == 200):
@@ -249,7 +248,6 @@ def fetch_thread():
                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/product/block/summary.json?v=1&callback=" + callBack
                                 strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
-                                time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
                                 LogMessage("请求返回状态：" + str(requestResponse.status_code))
 
                                 if (requestResponse.status_code == 200):
@@ -257,18 +255,32 @@ def fetch_thread():
                                     LogMessage(strResponseHtml)
 
                                     jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                                    obj = json.loads(jsonResult)
 
+                                    # 1️⃣ 取 summary 列表
+                                    available = [
+                                        i for i in obj["summary"]
+                                        if i["realSeatCntlk"] > 0
+                                    ]
+                                    # 2️⃣ 遍历并提取字段
+                                    for item in available:
+                                        floorNo = item["floorNo"]
+                                        areaNo = item["areaNo"]
+                                        seatGradeName = item["seatGradeName"]
+                                        realSeatCntlk = item["realSeatCntlk"]
+                                        print(f"楼层:{floorNo} 区域:{areaNo} 类型:{seatGradeName} 剩余:{realSeatCntlk}")
                                     callBack = "getSeatListCallBack"
-                                    strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?v=1&callback=" + callBack
-                                    strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode
-                                    requestResponse = client.post(strRequestUrl, strRequestParameter)
-                                    time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
+                                    strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?callback=" + callBack
+                                    strRequestParameter = "&v=1&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode+"&corpCodeNo="
+                                    requestResponse = client.get(strRequestUrl+strRequestParameter)
                                     LogMessage("post返回状态：" + str(requestResponse.status_code))
                                     if (requestResponse.status_code == 200):
                                         strResponseHtml = requestResponse.text
                                         LogMessage(strResponseHtml)
                                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                                         seatMapListHelper = json.loads(jsonResult)  # 在这里获得座位信息
+                                        floorNo = seatMapListHelper["seatIdxData"]["snt"]["f"],
+                                        areaNo = seatMapListHelper["seatIdxData"]["snt"]["a"],
                                         if (seatMapListHelper["seatData"] != None):
                                             seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                             seatId = ""
@@ -294,7 +306,6 @@ def fetch_thread():
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?v=1&callback=" + callBack
                         strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=&pocCode=" + pocCode + "&corpCodeNo="
                         requestResponse = client.post(strRequestUrl, strRequestParameter)
-                        time.sleep(random.uniform(requestInterval, requestInterval + 100) / 1000)
                         LogMessage("post返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
@@ -317,8 +328,6 @@ def fetch_thread():
                                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
                                                 strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                                                 requestResponse = client.get(strRequestUrl + strRequestParameter)
-                                                time.sleep(
-                                                    random.uniform(requestInterval, requestInterval + 100) / 1000)
                                                 LogMessage("get返回状态：" + str(requestResponse.status_code))
                                                 if (requestResponse.status_code == 200):
                                                     strResponseHtml = requestResponse.text
@@ -330,8 +339,7 @@ def fetch_thread():
                         else:
                             LogMessage("post请求失败")
                 elif excuteState == 7:
-                    callBack = "jQuery3600".join(random.choices("0123456789", k=13)) + "_" + str(
-                        int(round(time.time() * 1000)))
+                    callBack = f"jQuery{random.randint(10**17, 10**18-1)}_{int(time.time()*1000)}"
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/prodlimit.json?v=1&callback=" + callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode \
                                           + "&perfDate=" + perfDay + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode \
@@ -346,10 +354,11 @@ def fetch_thread():
                         LogMessage(strResponseHtml)
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
-                        if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.","httpsDomain":null,"httpDomain":null}
-                            if (dicResponseResult["result"] == "0000"):
-                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
-                                excuteState = 8
+                        if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
+                            excuteState = 8
+                            # if (dicResponseResult["result"] == "0000"):
+                            #     encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
+                            #     excuteState = 8
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 8:
