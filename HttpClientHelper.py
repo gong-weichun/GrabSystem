@@ -39,7 +39,7 @@ class TLSHttpClient:
             if response.status_code == 200:
                 return response
             elif not self.proxies:
-                return None
+                return response
             else:
                 self.proxies.pop(0)
     def post(self, url, data=None, json=None):
@@ -50,7 +50,7 @@ class TLSHttpClient:
             if response.status_code == 200:
                 return response
             elif not self.proxies:
-                return None
+                return response
             else:
                 self.proxies.pop(0)
 

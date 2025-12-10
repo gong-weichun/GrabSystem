@@ -37,9 +37,9 @@ proxies = [
 ]
 TimeDelay=500
 MemberKey = "1007828360"
-EventID = "212207"
+EventID = "212345"
 ScheduleNo = "100001"
-blockId="510,504"
+blockId="517"
 seatId=""
 user_accounts = []  # 用于存储账户名
 logger=Logger()

@@ -45,7 +45,7 @@ def fetch_thread():
     rsrvSeq = ""
     zamEnabled = ""
     zamKey = ""
-    stvn_view_list = ""
+    stvn_view_list = ";"
     mapClickYn = ""
     priceNo = ""
     rsrvVolume = ""
@@ -113,7 +113,7 @@ def fetch_thread():
                             strRequestUrl = "https://zam.melon.com/ts.wseq?opcode=5002&key=" + strQueKey + "&nfid=0&prefix=NetFunnel.gRtype=5002;&ttl=2&sid=service_1&aid=" + nflActId + "&user_data=" + MemberKey + "&js=yes&" + str(
                                 int(round(time.time() * 1000)))
                             requestResponse = client.get(strRequestUrl)
-                            LogMessage("get请求返回状态：" + requestResponse.status_code)
+                            LogMessage("get请求返回状态：" + str(requestResponse.status_code))
                             if (requestResponse.status_code == 200):
                                 strResponseHtml = requestResponse.text
                                 LogMessage(strResponseHtml)
@@ -164,7 +164,7 @@ def fetch_thread():
                                         time.sleep(1)
                                     LogMessage(strResponseHtml)
                         else:
-                            LogMessage("请求失败，返回状态：" + requestResponse.status_code + "，再次尝试")
+                            LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
                             time.sleep(1)
 
                 elif excuteState == 3:  # 获得产品信息
@@ -204,7 +204,7 @@ def fetch_thread():
                             if (dicResponseResult["code"] == "0000"):
                                 excuteState = 5
                     else:
-                        LogMessage("请求失败，返回状态：" + requestResponse.status_code + "，再次尝试")
+                        LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
                         time.sleep(1)
                 elif excuteState == 5:  # 获得产品售卖状态，应该在这个位置判断后续要走有区域流程还是无区域流程
                     callBack = "getValiProductScheduleCallBack"
@@ -222,7 +222,8 @@ def fetch_thread():
                         LogMessage("请求失败")
                 elif excuteState == 6:
                     if SeatType == 0:  # 选区域再选座位
-                        callBack = "getBlockGradeSeatCountCallBack"
+                        # 😊 初始区域界面就调用这个接口1
+                        callBack = "getBlockGradeSeatCountCallBack" #
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
                         strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                         requestResponse = client.get(strRequestUrl + strRequestParameter)
@@ -232,7 +233,14 @@ def fetch_thread():
                             strResponseHtml = requestResponse.text
                             LogMessage(strResponseHtml)
                             jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
-                            callBack = "getBlockGradeSeatMapCallBack"
+                            obj = json.loads(jsonResult)
+                            for itemSt in obj["summary"]:
+                                stvn_view_list += itemSt["sntvList"]
+                                stvn_view_list += ";"
+                            stvn_view_list = stvn_view_list[:-1]
+                            mapClickYn = obj["clipYn"]
+                            # 😊 初始区域界面就调用这个接口2，在这里能找到所有blockid，即sbid
+                            callBack = "getBlockGradeSeatMapCallBack"#
                             strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/getAreaMap.json?v=1&callback=" + callBack
                             strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
                             requestResponse = client.get(strRequestUrl + strRequestParameter)
@@ -241,10 +249,14 @@ def fetch_thread():
                             if (requestResponse.status_code == 200):
                                 strResponseHtml = requestResponse.text
                                 LogMessage(strResponseHtml)
-
                                 jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
 
-                                callBack = "getBlockSummaryCountCallBack"
+
+                                if blockId == "":
+                                    obj = json.loads(jsonResult)
+                                    blockId = obj["seatData"]["da"]["sb"][0]["sbid"]
+                                # 😊 初始区域界面就调用这个接口3
+                                callBack = "getBlockSummaryCountCallBack"#
                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/product/block/summary.json?v=1&callback=" + callBack
                                 strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
@@ -255,20 +267,14 @@ def fetch_thread():
                                     LogMessage(strResponseHtml)
 
                                     jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
-                                    obj = json.loads(jsonResult)
 
-                                    # 1️⃣ 取 summary 列表
-                                    available = [
-                                        i for i in obj["summary"]
-                                        if i["realSeatCntlk"] > 0
-                                    ]
-                                    # 2️⃣ 遍历并提取字段
-                                    for item in available:
-                                        floorNo = item["floorNo"]
-                                        areaNo = item["areaNo"]
-                                        seatGradeName = item["seatGradeName"]
-                                        realSeatCntlk = item["realSeatCntlk"]
-                                        print(f"楼层:{floorNo} 区域:{areaNo} 类型:{seatGradeName} 剩余:{realSeatCntlk}")
+                                    # obj = json.loads(jsonResult)
+                                    # for itemSt in obj["summary"]:
+                                    #     stvn_view_list += itemSt["floorNo"]
+                                    #     stvn_view_list += itemSt["areaNo"]
+                                    #     stvn_view_list +=";"
+                                    # stvn_view_list=stvn_view_list[:-1]
+
                                     callBack = "getSeatListCallBack"
                                     strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?callback=" + callBack
                                     strRequestParameter = "&v=1&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode+"&corpCodeNo="
@@ -279,9 +285,13 @@ def fetch_thread():
                                         LogMessage(strResponseHtml)
                                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                                         seatMapListHelper = json.loads(jsonResult)  # 在这里获得座位信息
-                                        floorNo = seatMapListHelper["seatIdxData"]["snt"]["f"],
-                                        areaNo = seatMapListHelper["seatIdxData"]["snt"]["a"],
+
                                         if (seatMapListHelper["seatData"] != None):
+                                            areaNo = seatMapListHelper["seatData"]["da"]["sb"][0]["sntv"]["a"]
+                                            floorNo = seatMapListHelper["seatData"]["da"]["sb"][0]["sntv"]["f"]
+                                            sntv=floorNo+","+areaNo
+                                            areaName = seatMapListHelper["seatIdxData"]["snt"]["a"]
+                                            floorName = seatMapListHelper["seatIdxData"]["snt"]["f"]
                                             seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                             seatId = ""
                                             for itemSt in seatMapListHelper["seatData"]["st"]:
@@ -289,6 +299,7 @@ def fetch_thread():
                                                     for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
                                                         if itemSs["sid"] != None:  # sid为null表示座位被选走
                                                             seatId = itemSs["sid"]
+                                                            excuteState = 7
                                                             break
                                                 else:
                                                     excuteState = 7
@@ -346,7 +357,7 @@ def fetch_thread():
                                           + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=" + seatGradeNo + "&seatGradeName=" + seatGradeName + "&blockId=" + blockId + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName \
                                           + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" + prodTypeCode + "&flplanTypeCode=" + flplanTypeCode + "&scheduleTypeCode=" + scheduleTypeCode + "&seatTypeCode=" + seatTypeCode \
                                           + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + zamEnabled + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn \
-                                          + "&netfunnel_key=&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn + "&seatId=" + seatId + "&clipSeatId=&chkcapt="
+                                          + "&netfunnel_key=&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn + "&seatId=" + seatId + "&clipSeatId=&chkcapt="+strCaptchaKey
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     LogMessage("返回状态：" + str(requestResponse.status_code))
                     if (requestResponse.status_code == 200):
