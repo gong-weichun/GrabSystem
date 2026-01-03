@@ -39,7 +39,7 @@ class UiWindow:
         self.entry_password.grid(row=1, column=1, padx=10, pady=5)
 
         tk.Label(frame_top, text="ScheduleNo:", bg="#f5f5f5").grid(row=1, column=2, sticky="w", padx=10, pady=5)
-        self.entry_scheduleno = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value="100001"))
+        self.entry_scheduleno = tk.Entry(frame_top, width=20, textvariable=tk.StringVar(value=global_resources.ScheduleNo))
         self.entry_scheduleno.grid(row=1, column=3, padx=10, pady=5)
 
         # ===== 中部：按钮区 =====
