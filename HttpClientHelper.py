@@ -35,7 +35,7 @@ class TLSHttpClient:
         # 发起 GET 请求
         while True:
             proxy = self.get_proxy()
-            response = self.session.get(url,proxy=proxy)#
+            response = self.session.get(url)#,proxy=proxy
             if response.status_code == 200:
                 return response
             elif not self.proxies:
@@ -46,7 +46,7 @@ class TLSHttpClient:
         # 发起 POST 请求
         while True:
             proxy = self.get_proxy()
-            response = self.session.post(url,data=data, json=json,proxy=proxy)#,proxy=proxy
+            response = self.session.post(url,data=data)#,json=json,proxy=proxy
             if response.status_code == 200:
                 return response
             elif not self.proxies:

@@ -363,10 +363,10 @@ def fetch_thread():
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
                         if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
-                            excuteState = 8
-                            # if (dicResponseResult["result"] == "0000"):
-                            #     encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
-                            #     excuteState = 8
+                            # excuteState = 8
+                            if (dicResponseResult["result"] == "0000"):
+                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
+                                excuteState = 8
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 8:
@@ -384,11 +384,13 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
-                        if "encryptedSeatIds" in dicResponseResult:
-                            strCaptchaKey = dicResponseResult["DATA"]
-                            if strCaptchaKey != "":
-                                excuteState = 9
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        excuteState = 9
+                        # if "encryptedSeatIds" in dicResponseResult:
+                        #     strCaptchaKey = dicResponseResult["DATA"]
+                        #     if strCaptchaKey != "":
+                        #         excuteState = 9
                         LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
@@ -510,14 +512,15 @@ def process_jsonp_response_robust(response_body, callback):
 
 u=UiWindow()
 def LogMessage(message):
-    global_resources.logger.info(message)
-    ui = UiWindow._instance
-    if ui:
-        ui.change_text_output(str(message))
-    else:
-        print("UI 未初始化")
+    if len(message)<50:
+        global_resources.logger.info(message)
+        ui = UiWindow._instance
+        if ui:
+            ui.change_text_output(str(message))
+        else:
+            print("UI 未初始化")
 
 
-event_handler = LogMessage
+#event_handler = LogMessage
 
 
