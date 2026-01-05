@@ -69,7 +69,7 @@ def fetch_thread():
             EventID = global_resources.EventID
             scheduleNo = global_resources.ScheduleNo
             requestInterval=global_resources.TimeDelay
-            blockId=global_resources.blockId
+            areaNo=global_resources.areaNo
             SeatType=int(global_resources.seatType)
             mapClickYn=global_resources.mapClickYn
             if global_resources.blStartGrab:
@@ -255,11 +255,14 @@ def fetch_thread():
                                 strResponseHtml = requestResponse.text
                                 LogMessage(strResponseHtml)
                                 jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                                obj = json.loads(jsonResult)
+                                for item in obj["seatData"]["da"]["sb"]:
+                                        if item["sntv"]["a"]==areaNo:
+                                            blockId=str(item["sbid"])
+                                            break;
+                                            #blockId = obj["seatData"]["da"]["sb"][0]["sbid"]    
+                                    
 
-
-                                if blockId == '""':
-                                    obj = json.loads(jsonResult)
-                                    blockId = obj["seatData"]["da"]["sb"][0]["sbid"]
                                 # 😊 初始区域界面就调用这个接口3
                                 callBack = "getBlockSummaryCountCallBack"#
                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/product/block/summary.json?v=1&callback=" + callBack
@@ -347,7 +350,8 @@ def fetch_thread():
                         else:
                             LogMessage("post请求失败")
                 elif excuteState == 7:
-                    callBack = f"jQuery{random.randint(10**17, 10**18-1)}_{int(time.time()*1000)}"
+                    callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13))+ "_" + str(
+                        int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/prodlimit.json?v=1&callback=" + callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode \
                                           + "&perfDate=" + perfDay + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode \
@@ -372,7 +376,7 @@ def fetch_thread():
                 elif excuteState == 8:
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/tickettype.json?v=1&callback=jQuery3600" + callBack
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/tickettype.json?v=1&callback=" + callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" \
                                         + perfDate + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName="\
                                         + perfMainName + "&seatGradeNo=&seatGradeName=&blockId=" + blockId + "&sntv="+sntv+"&blockTypeCode=&floorNo="+floorNo + \
@@ -395,7 +399,9 @@ def fetch_thread():
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 9:  # 选择价格pricelimit
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback=jQuery3600"+ "".join(random.choices("0123456789", k=13))\
+                    callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
+                        int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack\
                                      + "_" + str(int(round(time.time() * 1000)))
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" \
                                           + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=" + \
@@ -415,7 +421,9 @@ def fetch_thread():
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 10:  # 提交支付delivery
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback=jQuery3600"+ "".join(random.choices("0123456789", k=13))\
+                    callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
+                        int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack\
                                      + "_" + str(int(round(time.time() * 1000)))
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" + scheduleNo \
                                           + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=&blockId=" + blockId \
@@ -512,7 +520,7 @@ def process_jsonp_response_robust(response_body, callback):
 
 u=UiWindow()
 def LogMessage(message):
-    if len(message)<50:
+    if len(message)<100:
         global_resources.logger.info(message)
         ui = UiWindow._instance
         if ui:

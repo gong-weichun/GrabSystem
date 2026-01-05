@@ -2,6 +2,7 @@ import datetime
 import time
 import tkinter as tk
 from tkinter import scrolledtext
+from SolveCaptcha import ocr_image_from_base64
 import threading
 
 import global_resources
@@ -9,6 +10,7 @@ import global_resources
 
 class UiWindow:
     _instance = None  # 用来保存当前UI实例
+
     def start_ui_task(self):
         threading.Thread(target=self.set_ui).start()
 
@@ -16,7 +18,6 @@ class UiWindow:
         UiWindow._instance = self
 
     def set_ui(self):
-
         root = tk.Tk()
         root.title("主界面")
         root.geometry("1000x800")
@@ -56,7 +57,6 @@ class UiWindow:
         tk.Label(frame_slider, text="延迟时间 (ms):", bg="#f5f5f5").pack(side="left", padx=5)
         self.slider_value = tk.DoubleVar(value=400)
 
-        # 在滑块释放后自动触发更新
         slider = tk.Scale(
             frame_slider,
             from_=0,
@@ -65,7 +65,6 @@ class UiWindow:
             variable=self.slider_value,
             length=300,
             bg="#f5f5f5",
-            # command=self.on_slider_move
         )
         slider.pack(side="left", padx=10)
 
@@ -73,12 +72,10 @@ class UiWindow:
         frame_actions = tk.Frame(root, bg="#f5f5f5")
         frame_actions.pack(pady=10)
 
-        btn_start = tk.Button(frame_actions, text="开始", width=12, bg="green", fg="white",
-                              command=self.change_blStartGrab)
+        btn_start = tk.Button(frame_actions, text="开始", width=12, bg="green", fg="white", command=self.change_blStartGrab)
         btn_start.pack(side="left", padx=10)
 
-        btn_stop = tk.Button(frame_actions, text="结束", width=12, bg="red", fg="white",
-                             command=self.change_blStartGrab)
+        btn_stop = tk.Button(frame_actions, text="结束", width=12, bg="red", fg="white", command=self.change_blStartGrab)
         btn_stop.pack(side="left", padx=10)
 
         # ===== 输出区（日志） =====
@@ -96,6 +93,18 @@ class UiWindow:
         tk.Label(frame_accounts, text="账户列表:", bg="#f5f5f5").pack(anchor="w")
         self.text_accounts = scrolledtext.ScrolledText(frame_accounts, width=70, height=6, font=("Consolas", 10))
         self.text_accounts.pack(fill="both", expand=True)
+
+        # ===== 新增文本框和按钮 =====
+        frame_new_input = tk.Frame(root, bg="#f5f5f5")
+        frame_new_input.pack(pady=10)
+
+        # 文本框
+        tk.Label(frame_new_input, text="输入文本:", bg="#f5f5f5").pack(side="left", padx=5)
+        self.entry_new_text = tk.Entry(frame_new_input, width=40)
+        self.entry_new_text.pack(side="left", padx=5)
+
+        # 按钮
+        tk.Button(frame_new_input, text="解析验证码", width=15, command=self.get_and_clear_text).pack(side="left", padx=5)
 
         # 绑定释放事件（鼠标放开滑块时触发）
         slider.bind("<ButtonRelease-1>", self.on_slider_release)
@@ -119,10 +128,6 @@ class UiWindow:
     def clear_output(self):
         self.text_output.delete(1.0, tk.END)
 
-    # def on_slider_move(self, val):
-    #     """拖动时显示当前值但不更新全局变量"""
-    #     self.change_text_output(f"当前延迟值: {float(val):.0f} (未释放)")
-
     def on_slider_release(self, event):
         """释放滑块后自动赋值"""
         global_resources.TimeDelay = self.slider_value.get()
@@ -143,3 +148,15 @@ class UiWindow:
         global_resources.ScheduleNo = self.entry_scheduleno.get()
         global_resources.blStartGrab = not global_resources.blStartGrab
         self.change_text_output(f"blStartGrab 状态切换为: {global_resources.blStartGrab}")
+
+    def get_and_clear_text(self):
+        # 获取文本框内容
+        text = self.entry_new_text.get().strip()
+        if text:
+            result = ocr_image_from_base64(text.replace("'",""))
+            self.change_text_output(f"解析到的验证码为: {result}")
+        else:
+            self.change_text_output("[警告] 输入框为空！")
+        
+        # 清空文本框
+        self.entry_new_text.delete(0, tk.END)
