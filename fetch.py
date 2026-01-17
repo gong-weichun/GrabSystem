@@ -2,9 +2,9 @@ import json
 import random
 import time
 import re
-from HttpClientHelper import TLSHttpClient
+from http_helper import TLSHttpClient
 import global_resources
-from SolveCaptcha import ocr_image_from_base64
+from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
 
 def fetch_thread():
@@ -89,9 +89,11 @@ def fetch_thread():
                                 trafficCtrlYn = dicResponseResult["trafficCtrlYn"]
                                 prodKey = dicResponseResult["key"]
                                 excuteState = 1
+                            elif dicResponseResult["code"] == "TP9501":
+                                LogMessage("需要会员身份验证")
                             else:
                                 LogMessage("等待开放售卖中...")
-                                time.sleep(1)
+                                #time.sleep(1)
                     else:
                         time.sleep(1)
                 elif excuteState == 1:
@@ -166,7 +168,7 @@ def fetch_thread():
                                     else:
                                         LogMessage("验证码不通过，再次尝试")
                                         time.sleep(1)
-                                    LogMessage(strResponseHtml)
+                                    #LogMessage(strResponseHtml)
                         else:
                             LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
                             time.sleep(1)

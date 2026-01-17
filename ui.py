@@ -2,7 +2,7 @@ import datetime
 import time
 import tkinter as tk
 from tkinter import scrolledtext
-from SolveCaptcha import ocr_image_from_base64
+from solve_captcha import ocr_image_from_base64
 import threading
 
 import global_resources
@@ -60,7 +60,7 @@ class UiWindow:
         slider = tk.Scale(
             frame_slider,
             from_=0,
-            to=1000,
+            to=3000,
             orient="horizontal",
             variable=self.slider_value,
             length=300,

@@ -1,13 +1,13 @@
 import configparser
 
 import global_resources
-from HttpClientHelper import TLSHttpClient
+from http_helper import TLSHttpClient
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import random
 import threading
 import fetch
-from SolveCaptcha import ocr_image_from_base64
+from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
 import sys
 #pyside6-designer  data:image/png;base64,

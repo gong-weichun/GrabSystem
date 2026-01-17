@@ -1,6 +1,6 @@
 import configparser
 
-from Logger import Logger
+from logger import Logger
 blStartGrab = False
 cookies = {}
 headers = {}  # 新增：存储请求头
