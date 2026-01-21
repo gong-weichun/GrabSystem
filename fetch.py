@@ -233,7 +233,7 @@ def fetch_thread():
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
                         strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&perfDate=" + perfDate+"&langCd=EN"
                         requestResponse = client.post(strRequestUrl , strRequestParameter)
-                        LogMessage("get返回状态：" + str(requestResponse.status_code))
+                        LogMessage("获取初始区域,返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
                             strResponseHtml = requestResponse.text
@@ -251,7 +251,7 @@ def fetch_thread():
                             strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/getAreaMap.json?v=1&callback=" + callBack
                             strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                             requestResponse = client.post(strRequestUrl , strRequestParameter)
-                            LogMessage("get返回状态：" + str(requestResponse.status_code))
+                            LogMessage("查询所有的区域ID,返回状态：" + str(requestResponse.status_code))
 
                             if (requestResponse.status_code == 200):
                                 strResponseHtml = requestResponse.text
@@ -263,14 +263,13 @@ def fetch_thread():
                                             blockId=str(item["sbid"])
                                             break;
                                             #blockId = obj["seatData"]["da"]["sb"][0]["sbid"]    
-                                    
 
                                 # 😊 初始区域界面就调用这个接口3
                                 callBack = "getBlockSummaryCountCallBack"#
                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/product/block/summary.json?v=1&callback=" + callBack
                                 strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
-                                LogMessage("请求返回状态：" + str(requestResponse.status_code))
+                                LogMessage("getBlockSummaryCountCallBack接口,返回状态：" + str(requestResponse.status_code))
 
                                 if (requestResponse.status_code == 200):
                                     strResponseHtml = requestResponse.text
@@ -281,7 +280,7 @@ def fetch_thread():
                                     strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?callback=" + callBack
                                     strRequestParameter = "&v=1&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode+"&corpCodeNo="
                                     requestResponse = client.get(strRequestUrl+strRequestParameter)
-                                    LogMessage("post返回状态：" + str(requestResponse.status_code))
+                                    LogMessage("获取当前区域的所有座位信息,返回状态：" + str(requestResponse.status_code))
                                     if (requestResponse.status_code == 200):
                                         strResponseHtml = requestResponse.text
                                         LogMessage(strResponseHtml)
@@ -368,7 +367,10 @@ def fetch_thread():
                         LogMessage(strResponseHtml)
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
-                        if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
+                        if ("code" in dicResponseResult):
+                            if (dicResponseResult["code"] == "T8270"):#另一个用户正在支付这个座位
+                                excuteState = 6
+                        elif ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
                             # excuteState = 8
                             if (dicResponseResult["result"] == "0000"):
                                 encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
