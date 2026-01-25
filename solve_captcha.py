@@ -41,44 +41,9 @@ def ocr_image_from_base64(base64_data):
                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                       cv2.THRESH_BINARY, 11, 2)
 
-    # 6️⃣ 边缘检测（Canny）
-    edges = cv2.Canny(np_binary, threshold1=50, threshold2=150)  # 进行 Canny 边缘检测
-
-    # 7️⃣ 使用霍夫变换检测直线
-    # 线的检测参数：rho 为分辨率（1），theta 为角度分辨率（np.pi / 180），threshold 为检测阈值
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=10)
-
-    # 8️⃣ 遍历检测到的直线并遮掩（将直线区域设为白色）
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line[0]
-            # 在原图中将这些直线区域涂白
-            cv2.line(np_binary, (x1, y1), (x2, y2), (255, 255, 255), thickness=3)
-
-    # 9️⃣ 使用腐蚀操作去除干扰线
-    kernel_line = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 5))  # 设置较大的核
-    np_eroded = cv2.erode(np_binary, kernel_line, iterations=1)  # 腐蚀操作
-
-    # 10️⃣ 去除小的连通区域（干扰线一般为长条形）
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(np_eroded, connectivity=8)
-    # 11️⃣ 去掉大黑边并增加边距
-    coords = np.column_stack(np.where(np_eroded > 0))
-    if coords.size == 0:
-        return ""
-
-    y0, x0 = coords.min(axis=0)
-    y1, x1 = coords.max(axis=0)
-    margin = 5  # 增加边距
-    y0 = max(y0 - margin, 0)
-    x0 = max(x0 - margin, 0)
-    y1 = min(y1 + margin, np_eroded.shape[0] - 1)
-    x1 = min(x1 + margin, np_eroded.shape[1] - 1)
-    cropped = np_eroded[y0:y1 + 1, x0:x1 + 1]
-
-    # 12️⃣ 放大图像
-    h, w = cropped.shape
-    cropped_resized = cv2.resize(cropped, (w * 4, h * 4), interpolation=cv2.INTER_LINEAR)
-    pil_img = Image.fromarray(cropped_resized)
+    np_binary = remove_single_overlay_curve_full_angle_with_repair(np_binary)
+    pil_img = Image.fromarray(np_binary)
+    pil_img.show()
 
     # 13️⃣ OCR识别：调整 Tesseract 参数和 OCR 引擎
     config = "--psm 8 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # 仅支持大写字母
@@ -117,3 +82,188 @@ def ocr_image_from_base64(base64_data):
     corrected_text = corrected_text[:6].upper()
 
     return corrected_text
+
+def remove_single_overlay_curve_full_angle_with_repair(binary):
+    """
+    binary: 0=黑字，255=白底
+    """
+    h, w = binary.shape
+
+    # ① 反色
+    inv = cv2.bitwise_not(binary)
+
+    # ② 参数
+    kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+    angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
+
+    extracted_all = np.zeros_like(inv)
+
+    for angle in angles:
+        # ③ 生成水平线核
+        base = np.zeros((kernel_len, kernel_len), np.uint8)
+        base[kernel_len//2, :] = 1
+
+        # ④ 旋转核
+        M = cv2.getRotationMatrix2D(
+            (kernel_len//2, kernel_len//2),
+            angle,
+            1.0
+        )
+        rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+        rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
+
+        # ⑤ 抽取该方向线段
+        lines = cv2.morphologyEx(
+            inv,
+            cv2.MORPH_OPEN,
+            rotated_kernel,
+            iterations=1
+        )
+
+        extracted_all = cv2.bitwise_or(extracted_all, lines)
+
+    # ⑥ 从原图中减去所有方向线
+    removed = cv2.subtract(inv, extracted_all)
+
+    # ⑦ 反色恢复
+    result = cv2.bitwise_not(removed)
+
+    # ⑧ 修复字符断裂（闭运算）- 填补字符之间的空隙
+    fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=1)  # 使用较少的闭运算次数
+
+    # ⑨ 进一步膨胀字符区域，修复字符连接处的断裂
+    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 使用更小的膨胀核
+    result = cv2.morphologyEx(result, cv2.MORPH_DILATE, dilation_kernel, iterations=1)
+
+    # ⑩ 连通组件分析：确保字符区域是连贯的
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(result)
+
+    # ⑪ 如果检测到的字符区域被过度修改，进行进一步修复
+    for i in range(1, num_labels):  # 跳过背景
+        # 如果字符的面积过小，可以考虑填补
+        if stats[i, cv2.CC_STAT_AREA] < 100:
+            # 使用填充的方式进行修复
+            mask = (labels == i).astype(np.uint8) * 255
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                cv2.drawContours(result, contours, -1, 255, thickness=cv2.FILLED)
+
+    return result
+
+def remove_single_overlay_curve_full_angle_with_repair1(binary):
+    """
+    binary: 0=黑字，255=白底
+    """
+    h, w = binary.shape
+
+    # ① 反色
+    inv = cv2.bitwise_not(binary)
+
+    # ② 参数
+    kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+    angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
+
+    extracted_all = np.zeros_like(inv)
+
+    for angle in angles:
+        # ③ 生成水平线核
+        base = np.zeros((kernel_len, kernel_len), np.uint8)
+        base[kernel_len//2, :] = 1
+
+        # ④ 旋转核
+        M = cv2.getRotationMatrix2D(
+            (kernel_len//2, kernel_len//2),
+            angle,
+            1.0
+        )
+        rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+        rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
+
+        # ⑤ 抽取该方向线段
+        lines = cv2.morphologyEx(
+            inv,
+            cv2.MORPH_OPEN,
+            rotated_kernel,
+            iterations=1
+        )
+
+        extracted_all = cv2.bitwise_or(extracted_all, lines)
+
+    # ⑥ 从原图中减去所有方向线
+    removed = cv2.subtract(inv, extracted_all)
+
+    # ⑦ 反色恢复
+    result = cv2.bitwise_not(removed)
+
+    # ⑧ 修复字符断裂（闭运算）- 填补字符之间的空隙
+    fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=2)
+
+    # ⑨ 进一步膨胀字符区域，修复字符连接处的断裂
+    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    result = cv2.morphologyEx(result, cv2.MORPH_DILATE, dilation_kernel, iterations=1)
+
+    # ⑩ 连通组件分析：确保字符区域是连贯的
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(result)
+
+    # ⑪ 如果检测到的字符区域被过度修改，进行进一步修复
+    for i in range(1, num_labels):  # 跳过背景
+        # 如果字符的面积过小，可以考虑填补
+        if stats[i, cv2.CC_STAT_AREA] < 100:
+            # 使用填充的方式进行修复
+            cv2.drawContours(result, [labels == i], -1, (255), thickness=cv2.FILLED)
+
+    return result
+
+
+# def remove_single_overlay_curve_full_angle(binary):
+#     """
+#     binary: 0=黑字，255=白底
+#     """
+#     h, w = binary.shape
+
+#     # ① 反色
+#     inv = cv2.bitwise_not(binary)
+
+#     # ② 参数
+#     kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+#     angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
+
+#     extracted_all = np.zeros_like(inv)
+
+#     for angle in angles:
+#         # ③ 生成水平线核
+#         base = np.zeros((kernel_len, kernel_len), np.uint8)
+#         base[kernel_len//2, :] = 1
+
+#         # ④ 旋转核
+#         M = cv2.getRotationMatrix2D(
+#             (kernel_len//2, kernel_len//2),
+#             angle,
+#             1.0
+#         )
+#         rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+#         rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
+
+#         # ⑤ 抽取该方向线段
+#         lines = cv2.morphologyEx(
+#             inv,
+#             cv2.MORPH_OPEN,
+#             rotated_kernel,
+#             iterations=1
+#         )
+
+#         extracted_all = cv2.bitwise_or(extracted_all, lines)
+
+#     # ⑥ 从原图中减去所有方向线
+#     removed = cv2.subtract(inv, extracted_all)
+
+#     # ⑦ 反色
+#     result = cv2.bitwise_not(removed)
+
+#     # ⑧ 修复字符断裂
+#     fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+#     result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=1)
+
+#     return result

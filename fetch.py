@@ -154,6 +154,7 @@ def fetch_thread():
                                 CaptchaData = dicResponseResult["CAPTDATA"]
                                 Base64Code = dicResponseResult["CAPTIMAGE"]
                                 CaptchaResult = ocr_image_from_base64(Base64Code)
+                                LogMessage("CaptchaResult: " + CaptchaResult)
                                 time.sleep(0.5)
                                 strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/checkCaptcha.json"
                                 strRequestParameter = "userCaptStr=" + CaptchaResult.lower() + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
@@ -405,8 +406,7 @@ def fetch_thread():
                 elif excuteState == 9:  # 选择价格pricelimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack\
-                                     + "_" + str(int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" \
                                           + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=" + \
                                           "&blockId=" + blockId + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" \
@@ -416,10 +416,10 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
-                        if "encryptedSeatIds" in dicResponseResult:
-                            encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
-                            if (encryptedSeatIds != ""):
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        if "result" in dicResponseResult:
+                            if (dicResponseResult["result"] == "0000"):
                                 excuteState = 10
                         LogMessage(strResponseHtml)
                     else:
@@ -427,8 +427,7 @@ def fetch_thread():
                 elif excuteState == 10:  # 提交支付delivery
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack\
-                                     + "_" + str(int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" + scheduleNo \
                                           + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=&blockId=" + blockId \
                                           + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" + prodTypeCode \
@@ -438,7 +437,8 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
                         LogMessage(strResponseHtml)
                         excuteState = 11
                     else:
