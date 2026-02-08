@@ -94,6 +94,18 @@ class UiWindow:
         self.text_accounts = scrolledtext.ScrolledText(frame_accounts, width=70, height=6, font=("Consolas", 10))
         self.text_accounts.pack(fill="both", expand=True)
 
+        # ===== 输出区（SeatID 和 encryptedSeatIds） =====
+        frame_seat_info = tk.Frame(root, bg="#f5f5f5")
+        frame_seat_info.pack(padx=10, pady=5, fill="both", expand=True)
+
+        tk.Label(frame_seat_info, text="SeatID:", bg="#f5f5f5").pack(anchor="w")
+        self.text_seat_id = scrolledtext.ScrolledText(frame_seat_info, width=70, height=2, font=("Consolas", 10))
+        self.text_seat_id.pack(fill="both", expand=True)
+
+        tk.Label(frame_seat_info, text="encryptedSeatIds:", bg="#f5f5f5").pack(anchor="w")
+        self.text_encrypted_seat_ids = scrolledtext.ScrolledText(frame_seat_info, width=70, height=2, font=("Consolas", 10))
+        self.text_encrypted_seat_ids.pack(fill="both", expand=True)
+
         # ===== 新增文本框和按钮 =====
         frame_new_input = tk.Frame(root, bg="#f5f5f5")
         frame_new_input.pack(pady=10)
@@ -160,3 +172,7 @@ class UiWindow:
         
         # 清空文本框
         self.entry_new_text.delete(0, tk.END)
+    def get_and_clear_seat_info(self,seatId,encryptedSeatIds):
+        self.text_seat_id.insert(tk.END, f"{seatId}\n")
+        self.text_encrypted_seat_ids.insert(tk.END, f"{encryptedSeatIds}\n")
+

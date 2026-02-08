@@ -41,7 +41,7 @@ def fetch_thread():
     seatId = ""
     encryptedSeatIds = ""
     blockTypeCode = ""
-    rsrvStep = ""
+    rsrvStep = "SAT"
     rsrvSeq = ""
     zamEnabled = ""
     zamKey = ""
@@ -61,6 +61,8 @@ def fetch_thread():
     strCaptchaKey = ""  # 验证码提交后返回的key值
     requestInterval = 500  # 请求间隔
     waitNum = 0
+    seatId=""
+    encryptedSeatIds=""
 
     client = TLSHttpClient()
     while True:
@@ -72,6 +74,8 @@ def fetch_thread():
             areaNo=global_resources.areaNo
             SeatType=int(global_resources.seatType)
             mapClickYn=global_resources.mapClickYn
+            global_resources.seatId = seatId
+            global_resources.encryptedSeatIds = encryptedSeatIds
             if global_resources.blStartGrab:
                 LogMessage("准备进入状态："+str(excuteState))
                 if excuteState == 0:
@@ -303,6 +307,9 @@ def fetch_thread():
                                                             seatId = itemSs["sid"]
                                                             excuteState = 7
                                                             break
+                                                    if(seatId == ""):
+                                                        excuteState = 100
+                                                        break
                                                 else:
                                                     excuteState = 7
                                                     break
@@ -351,7 +358,7 @@ def fetch_thread():
                                                     LogMessage("get请求失败")
                         else:
                             LogMessage("post请求失败")
-                elif excuteState == 7:
+                elif excuteState == 7:#座位选择完成prodlimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13))+ "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/prodlimit.json?v=1&callback=" + callBack
@@ -371,14 +378,16 @@ def fetch_thread():
                         if ("code" in dicResponseResult):
                             if (dicResponseResult["code"] == "T8270"):#另一个用户正在支付这个座位
                                 excuteState = 6
+                            if (dicResponseResult["code"] == "T0002"):#请完成认证预售
+                                LogMessage("请完成认证预售")
                         elif ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
                             # excuteState = 8
                             if (dicResponseResult["result"] == "0000"):
-                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
+                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]#zuwJ2DmGvzlzXkwP9BiKg4ZA5iFLg4lSEqyLrUUgtI2UZPoMRq8FehSJyK8HwIft
                                 excuteState = 8
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 8:
+                elif excuteState == 8:#获取票型tickettype
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/tickettype.json?v=1&callback=" + callBack
@@ -443,7 +452,7 @@ def fetch_thread():
                         excuteState = 11
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 11:
+                elif excuteState == 11:#好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
                     strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_847%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+689+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%2C%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_776%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+619+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D" + \
                                           "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName=weichun+gong&payAmt=322000" + \
@@ -452,13 +461,14 @@ def fetch_thread():
                                           "&tel=" + TelephoneNum + "&rsrvSeq=" + rsrvSeq + "&payMethodCode=AP0012&httpDomain=&card_pay_method=GLB"
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
-                        strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
-                        if "DATA" in dicResponseResult:
-                            strCaptchaKey = dicResponseResult["DATA"]
-                            if strCaptchaKey != "":
-                                excuteState = 12
-                        LogMessage(strResponseHtml)
+                        excuteState = 12
+                        # strResponseHtml = requestResponse.text
+                        # dicResponseResult = json.loads(strResponseHtml)
+                        # if "DATA" in dicResponseResult:
+                        #     strCaptchaKey = dicResponseResult["DATA"]
+                        #     if strCaptchaKey != "":
+                        #         excuteState = 12
+                        # LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
                 elif excuteState == 12:  # 发起支付，准备输入卡号
@@ -495,10 +505,12 @@ def fetch_thread():
 
                         if "resultCode" in dicResponseResult:
                             resultCode = dicResponseResult["resultCode"]
-                            if strCaptchaKey != "":
+                            if resultCode == "0000":
                                 excuteState = 13
                             LogMessage(strResponseHtml)
                 elif excuteState == 13:
+                    break
+                elif excuteState == 100:
                     break
                 time.sleep(random.uniform(requestInterval, requestInterval + 20) / 1000)
             else:
@@ -529,6 +541,8 @@ def LogMessage(message):
         ui = UiWindow._instance
         if ui:
             ui.change_text_output(str(message))
+            if encryptedSeatIds != "":
+                ui.get_and_clear_seat_info(seatId,encryptedSeatIds)
         else:
             print("UI 未初始化")
 

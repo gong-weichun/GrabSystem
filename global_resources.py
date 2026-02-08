@@ -32,8 +32,11 @@ MemberKey = config['settings']['memberkey']
 EventID = config['settings']['eventid']
 ScheduleNo = config['settings']['scheduleno']
 areaNo = config['settings']['areaNo']
-seatId = config['settings']['seatid']
+
 seatType = config['settings']['seattype']
 mapClickYn = config['settings']['mapClickYn']
 user_accounts = []  # 用于存储账户名
 logger=Logger()
+
+seatId = ""
+encryptedSeatIds=""
