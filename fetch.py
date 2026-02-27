@@ -6,6 +6,7 @@ from http_helper import TLSHttpClient
 import global_resources
 from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
+from urllib.parse import parse_qs, unquote
 
 def fetch_thread():
     SeatType = 0
@@ -41,7 +42,7 @@ def fetch_thread():
     seatId = ""
     encryptedSeatIds = ""
     blockTypeCode = ""
-    rsrvStep = ""
+    rsrvStep = "SAT"
     rsrvSeq = ""
     zamEnabled = ""
     zamKey = ""
@@ -61,6 +62,9 @@ def fetch_thread():
     strCaptchaKey = ""  # 验证码提交后返回的key值
     requestInterval = 500  # 请求间隔
     waitNum = 0
+    seatId=""
+    encryptedSeatIds=""
+    unionpayUrl = ""
 
     client = TLSHttpClient()
     while True:
@@ -71,7 +75,12 @@ def fetch_thread():
             requestInterval=global_resources.TimeDelay
             areaNo=global_resources.areaNo
             SeatType=int(global_resources.seatType)
-            mapClickYn=global_resources.mapClickYn
+            global_resources.seatId = seatId
+            global_resources.encryptedSeatIds = encryptedSeatIds
+            if SeatType==0:
+                mapClickYn = "Y"
+            else:
+                mapClickYn = "N"
             if global_resources.blStartGrab:
                 LogMessage("准备进入状态："+str(excuteState))
                 if excuteState == 0:
@@ -95,6 +104,7 @@ def fetch_thread():
                                 LogMessage("等待开放售卖中...")
                                 #time.sleep(1)
                     else:
+                        LogMessage("http返回："+str(requestResponse.status_code))
                         time.sleep(1)
                 elif excuteState == 1:
                     if trafficCtrlYn.upper() == "Y":
@@ -154,6 +164,7 @@ def fetch_thread():
                                 CaptchaData = dicResponseResult["CAPTDATA"]
                                 Base64Code = dicResponseResult["CAPTIMAGE"]
                                 CaptchaResult = ocr_image_from_base64(Base64Code)
+                                LogMessage("CaptchaResult: " + CaptchaResult)
                                 time.sleep(0.5)
                                 strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/checkCaptcha.json"
                                 strRequestParameter = "userCaptStr=" + CaptchaResult.lower() + "&chkcapt=" + CaptchaData + "&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&pocCode=" + pocCode + "&sellTypeCode=" + sellTypeCode
@@ -233,7 +244,7 @@ def fetch_thread():
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
                         strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&perfDate=" + perfDate+"&langCd=EN"
                         requestResponse = client.post(strRequestUrl , strRequestParameter)
-                        LogMessage("get返回状态：" + str(requestResponse.status_code))
+                        LogMessage("获取初始区域,返回状态：" + str(requestResponse.status_code))
 
                         if (requestResponse.status_code == 200):
                             strResponseHtml = requestResponse.text
@@ -251,7 +262,7 @@ def fetch_thread():
                             strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/getAreaMap.json?v=1&callback=" + callBack
                             strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                             requestResponse = client.post(strRequestUrl , strRequestParameter)
-                            LogMessage("get返回状态：" + str(requestResponse.status_code))
+                            LogMessage("查询所有的区域ID,返回状态：" + str(requestResponse.status_code))
 
                             if (requestResponse.status_code == 200):
                                 strResponseHtml = requestResponse.text
@@ -261,16 +272,15 @@ def fetch_thread():
                                 for item in obj["seatData"]["da"]["sb"]:
                                         if item["sntv"]["a"]==areaNo:
                                             blockId=str(item["sbid"])
-                                            break;
+                                            break
                                             #blockId = obj["seatData"]["da"]["sb"][0]["sbid"]    
-                                    
 
                                 # 😊 初始区域界面就调用这个接口3
                                 callBack = "getBlockSummaryCountCallBack"#
                                 strRequestUrl = "https://tkglobal.melon.com/tktapi/product/block/summary.json?v=1&callback=" + callBack
                                 strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&seatGradeNo="
                                 requestResponse = client.post(strRequestUrl, strRequestParameter)
-                                LogMessage("请求返回状态：" + str(requestResponse.status_code))
+                                LogMessage("getBlockSummaryCountCallBack接口,返回状态：" + str(requestResponse.status_code))
 
                                 if (requestResponse.status_code == 200):
                                     strResponseHtml = requestResponse.text
@@ -281,7 +291,7 @@ def fetch_thread():
                                     strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?callback=" + callBack
                                     strRequestParameter = "&v=1&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode+"&corpCodeNo="
                                     requestResponse = client.get(strRequestUrl+strRequestParameter)
-                                    LogMessage("post返回状态：" + str(requestResponse.status_code))
+                                    LogMessage("获取当前区域的所有座位信息,返回状态：" + str(requestResponse.status_code))
                                     if (requestResponse.status_code == 200):
                                         strResponseHtml = requestResponse.text
                                         LogMessage(strResponseHtml)
@@ -303,6 +313,9 @@ def fetch_thread():
                                                             seatId = itemSs["sid"]
                                                             excuteState = 7
                                                             break
+                                                    if(seatId == ""):
+                                                        excuteState = 100
+                                                        break
                                                 else:
                                                     excuteState = 7
                                                     break
@@ -351,7 +364,7 @@ def fetch_thread():
                                                     LogMessage("get请求失败")
                         else:
                             LogMessage("post请求失败")
-                elif excuteState == 7:
+                elif excuteState == 7:#座位选择完成prodlimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13))+ "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/prodlimit.json?v=1&callback=" + callBack
@@ -368,14 +381,19 @@ def fetch_thread():
                         LogMessage(strResponseHtml)
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
-                        if ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
+                        if ("code" in dicResponseResult):
+                            if (dicResponseResult["code"] == "T8270"):#另一个用户正在支付这个座位
+                                excuteState = 6
+                            if (dicResponseResult["code"] == "T0002"):#请完成认证预售
+                                LogMessage("请完成认证预售")
+                        elif ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
                             # excuteState = 8
                             if (dicResponseResult["result"] == "0000"):
-                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
+                                encryptedSeatIds = dicResponseResult["encryptedSeatIds"]#zuwJ2DmGvzlzXkwP9BiKg4ZA5iFLg4lSEqyLrUUgtI2UZPoMRq8FehSJyK8HwIft
                                 excuteState = 8
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 8:
+                elif excuteState == 8:#获取票型tickettype
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/tickettype.json?v=1&callback=" + callBack
@@ -403,8 +421,7 @@ def fetch_thread():
                 elif excuteState == 9:  # 选择价格pricelimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack\
-                                     + "_" + str(int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" \
                                           + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=" + \
                                           "&blockId=" + blockId + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" \
@@ -414,10 +431,10 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
-                        if "encryptedSeatIds" in dicResponseResult:
-                            encryptedSeatIds = dicResponseResult["encryptedSeatIds"]
-                            if (encryptedSeatIds != ""):
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        if "result" in dicResponseResult:
+                            if (dicResponseResult["result"] == "0000"):
                                 excuteState = 10
                         LogMessage(strResponseHtml)
                     else:
@@ -425,8 +442,7 @@ def fetch_thread():
                 elif excuteState == 10:  # 提交支付delivery
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack\
-                                     + "_" + str(int(round(time.time() * 1000)))
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack
                     strRequestParameter = "langCd=EN&prodId=" + EventID + "&pocCode=" + pocCode + "&perfTypeCode=" + perfTypeCode + "&perfDate=" + perfDate + "&scheduleNo=" + scheduleNo \
                                           + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=&blockId=" + blockId \
                                           + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" + prodTypeCode \
@@ -436,12 +452,13 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
                         LogMessage(strResponseHtml)
                         excuteState = 11
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 11:
+                elif excuteState == 11:#好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
                     strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_847%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+689+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%2C%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_776%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+619+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D" + \
                                           "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName=weichun+gong&payAmt=322000" + \
@@ -450,16 +467,17 @@ def fetch_thread():
                                           "&tel=" + TelephoneNum + "&rsrvSeq=" + rsrvSeq + "&payMethodCode=AP0012&httpDomain=&card_pay_method=GLB"
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
-                        strResponseHtml = requestResponse.text
-                        dicResponseResult = json.loads(strResponseHtml)
-                        if "DATA" in dicResponseResult:
-                            strCaptchaKey = dicResponseResult["DATA"]
-                            if strCaptchaKey != "":
-                                excuteState = 12
-                        LogMessage(strResponseHtml)
+                        excuteState = 12
+                        # strResponseHtml = requestResponse.text
+                        # dicResponseResult = json.loads(strResponseHtml)
+                        # if "DATA" in dicResponseResult:
+                        #     strCaptchaKey = dicResponseResult["DATA"]
+                        #     if strCaptchaKey != "":
+                        #         excuteState = 12
+                        # LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 12:  # 发起支付，准备输入卡号
+                elif excuteState == 12:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
                     strRequestUrl = "https://stdpay.inicis.com/jsApi/union/requestVerify"
                     strRequestParameter = "cardCode=26&cardQuota=00&Ocbcard1=&Ocbcard2=&Ocbcard3=&Ocbcard4=&plan=lpointType2&chkLpointUse=on&lCardNo1=" + \
                                           "&lCardNo2=&lCardNo3=&lCardNo4=&lCardPw=&usePoint=&cardCodesNormal=21%2C22%2C23%2C24%2C25&cardCodesVisa3dDacom=12%2C14%2C41%2C32%2C53%2C48%2C04" + \
@@ -493,10 +511,25 @@ def fetch_thread():
 
                         if "resultCode" in dicResponseResult:
                             resultCode = dicResponseResult["resultCode"]
-                            if strCaptchaKey != "":
+                            if resultCode == "0000":
+                                data = parse_qs(dicResponseResult["unionResponse"])
+                                # 取值（parse_qs 返回的是 list）
+                                result = {k: v[0] for k, v in data.items()}
+
+                                # 对 URL 再解码
+                                unionpayUrl = unquote(result["unionpay_url"])
                                 excuteState = 13
                             LogMessage(strResponseHtml)
                 elif excuteState == 13:
+                    requestResponse = client.get(unionpayUrl)
+                    if (requestResponse.status_code == 200):
+                        LogMessage("调用支付接口，返回成功！")
+                        strResponseHtml = requestResponse.text
+                        dicResponseResult = json.loads(strResponseHtml)
+                    else:
+                        LogMessage("调用支付接口，返回：" + str(requestResponse.status_code))
+                    break
+                elif excuteState == 100:
                     break
                 time.sleep(random.uniform(requestInterval, requestInterval + 20) / 1000)
             else:
@@ -520,13 +553,14 @@ def process_jsonp_response_robust(response_body, callback):
         return match.group(1)
     return response_body  # 如果不是 JSONP 格式，直接返回原始内容
 
-u=UiWindow()
 def LogMessage(message):
     if len(message)<100:
         global_resources.logger.info(message)
         ui = UiWindow._instance
         if ui:
             ui.change_text_output(str(message))
+            if global_resources.encryptedSeatIds != "":
+                ui.get_and_clear_seat_info(global_resources.seatId,global_resources.encryptedSeatIds)
         else:
             print("UI 未初始化")
 

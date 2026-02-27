@@ -9,6 +9,7 @@ import cv2
 # 指定 tesseract.exe 的路径
 pytesseract.pytesseract.tesseract_cmd = os.path.join("D:\\Tesseract-OCR", "tesseract.exe")
 
+
 def ocr_image_from_base64(base64_data):
     # 1️⃣ 去掉 Base64 前缀
     if base64_data.startswith("data:image"):
@@ -40,44 +41,25 @@ def ocr_image_from_base64(base64_data):
                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                       cv2.THRESH_BINARY, 11, 2)
 
-    # 6️⃣ 轻微去噪
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 增大去噪核
-    np_clean = cv2.morphologyEx(np_binary, cv2.MORPH_OPEN, kernel)
+    np_binary = remove_single_overlay_curve_full_angle_with_repair(np_binary)
+    pil_img = Image.fromarray(np_binary)
+    pil_img.show()
 
-    # 7️⃣ 去掉大黑边并增加边距
-    coords = np.column_stack(np.where(np_clean > 0))
-    if coords.size == 0:
-        return ""
-
-    y0, x0 = coords.min(axis=0)
-    y1, x1 = coords.max(axis=0)
-    margin = 5  # 增加边距
-    y0 = max(y0 - margin, 0)
-    x0 = max(x0 - margin, 0)
-    y1 = min(y1 + margin, np_clean.shape[0] - 1)
-    x1 = min(x1 + margin, np_clean.shape[1] - 1)
-    cropped = np_clean[y0:y1 + 1, x0:x1 + 1]
-
-    # 8️⃣ 放大图像
-    h, w = cropped.shape
-    cropped_resized = cv2.resize(cropped, (w * 4, h * 4), interpolation=cv2.INTER_LINEAR)
-    pil_img = Image.fromarray(cropped_resized)
-
-    # 9️⃣ OCR识别：调整 Tesseract 参数和 OCR 引擎
-    config = "--psm 7 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # 仅支持大写字母
+    # 13️⃣ OCR识别：调整 Tesseract 参数和 OCR 引擎
+    config = "--psm 8 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # 仅支持大写字母
     data = pytesseract.image_to_data(
         pil_img,
         config=config,
         output_type=pytesseract.Output.DICT
     )
 
-    # 10️⃣ 处理 OCR 输出：逐个字符，拼接保证最后字符识别
+    # 14️⃣ 处理 OCR 输出：逐个字符，拼接保证最后字符识别
     text = ''.join([c for c in data['text'] if c.strip() != ''])
 
-    # 11️⃣ 如果识别的字符不为 6 个，进行后处理确保字符数为 6 个
+    # 15️⃣ 如果识别的字符不为 6 个，进行后处理确保字符数为 6 个
     text = text[:6]  # 确保只有 6 个字符
 
-    # 12️⃣ 后处理修正：根据置信度进行修正
+    # 16️⃣ 后处理修正：根据置信度进行修正
     corrected_text = []
     for i in range(len(data['text'])):
         char = data['text'][i]
@@ -86,7 +68,7 @@ def ocr_image_from_base64(base64_data):
         # 如果识别置信度较低且字符为"O"，则认为它可能是"Q"
         if conf < 50 and char == "O":
             # 基于上下文判断是否是"Q"
-            if i > 0 and data['text'][i-1] == "Q":  # 如果前一个字符是Q
+            if i > 0 and data['text'][i - 1] == "Q":  # 如果前一个字符是Q
                 corrected_text.append("Q")
             else:
                 corrected_text.append("O")
@@ -96,81 +78,192 @@ def ocr_image_from_base64(base64_data):
     # 拼接最终结果
     corrected_text = ''.join(corrected_text).strip()
 
-    # 13️⃣ 确保返回的字符数为6个并且是大写字母
+    # 17️⃣ 确保返回的字符数为6个并且是大写字母
     corrected_text = corrected_text[:6].upper()
 
     return corrected_text
 
+def remove_single_overlay_curve_full_angle_with_repair(binary):
+    """
+    binary: 0=黑字，255=白底
+    """
+    h, w = binary.shape
+
+    # ① 反色
+    inv = cv2.bitwise_not(binary)
+
+    # ② 参数
+    kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+    angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
+
+    extracted_all = np.zeros_like(inv)
+
+    for angle in angles:
+        # ③ 生成水平线核
+        base = np.zeros((kernel_len, kernel_len), np.uint8)
+        base[kernel_len//2, :] = 1
+
+        # ④ 旋转核
+        M = cv2.getRotationMatrix2D(
+            (kernel_len//2, kernel_len//2),
+            angle,
+            1.0
+        )
+        rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+        rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
+
+        # ⑤ 抽取该方向线段
+        lines = cv2.morphologyEx(
+            inv,
+            cv2.MORPH_OPEN,
+            rotated_kernel,
+            iterations=1
+        )
+
+        extracted_all = cv2.bitwise_or(extracted_all, lines)
+
+    # ⑥ 从原图中减去所有方向线
+    removed = cv2.subtract(inv, extracted_all)
+
+    # ⑦ 反色恢复
+    result = cv2.bitwise_not(removed)
+
+    # ⑧ 修复字符断裂（闭运算）- 填补字符之间的空隙
+    fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=1)  # 使用较少的闭运算次数
+
+    # ⑨ 进一步膨胀字符区域，修复字符连接处的断裂
+    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))  # 使用更小的膨胀核
+    result = cv2.morphologyEx(result, cv2.MORPH_DILATE, dilation_kernel, iterations=1)
+
+    # ⑩ 连通组件分析：确保字符区域是连贯的
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(result)
+
+    # ⑪ 如果检测到的字符区域被过度修改，进行进一步修复
+    for i in range(1, num_labels):  # 跳过背景
+        # 如果字符的面积过小，可以考虑填补
+        if stats[i, cv2.CC_STAT_AREA] < 100:
+            # 使用填充的方式进行修复
+            mask = (labels == i).astype(np.uint8) * 255
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                cv2.drawContours(result, contours, -1, 255, thickness=cv2.FILLED)
+
+    return result
+
+def remove_single_overlay_curve_full_angle_with_repair1(binary):
+    """
+    binary: 0=黑字，255=白底
+    """
+    h, w = binary.shape
+
+    # ① 反色
+    inv = cv2.bitwise_not(binary)
+
+    # ② 参数
+    kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+    angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
+
+    extracted_all = np.zeros_like(inv)
+
+    for angle in angles:
+        # ③ 生成水平线核
+        base = np.zeros((kernel_len, kernel_len), np.uint8)
+        base[kernel_len//2, :] = 1
+
+        # ④ 旋转核
+        M = cv2.getRotationMatrix2D(
+            (kernel_len//2, kernel_len//2),
+            angle,
+            1.0
+        )
+        rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+        rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
+
+        # ⑤ 抽取该方向线段
+        lines = cv2.morphologyEx(
+            inv,
+            cv2.MORPH_OPEN,
+            rotated_kernel,
+            iterations=1
+        )
+
+        extracted_all = cv2.bitwise_or(extracted_all, lines)
+
+    # ⑥ 从原图中减去所有方向线
+    removed = cv2.subtract(inv, extracted_all)
+
+    # ⑦ 反色恢复
+    result = cv2.bitwise_not(removed)
+
+    # ⑧ 修复字符断裂（闭运算）- 填补字符之间的空隙
+    fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=2)
+
+    # ⑨ 进一步膨胀字符区域，修复字符连接处的断裂
+    dilation_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    result = cv2.morphologyEx(result, cv2.MORPH_DILATE, dilation_kernel, iterations=1)
+
+    # ⑩ 连通组件分析：确保字符区域是连贯的
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(result)
+
+    # ⑪ 如果检测到的字符区域被过度修改，进行进一步修复
+    for i in range(1, num_labels):  # 跳过背景
+        # 如果字符的面积过小，可以考虑填补
+        if stats[i, cv2.CC_STAT_AREA] < 100:
+            # 使用填充的方式进行修复
+            cv2.drawContours(result, [labels == i], -1, (255), thickness=cv2.FILLED)
+
+    return result
 
 
+# def remove_single_overlay_curve_full_angle(binary):
+#     """
+#     binary: 0=黑字，255=白底
+#     """
+#     h, w = binary.shape
 
-# import base64
-# import os
-# from io import BytesIO
-# from PIL import Image, ImageFilter
-# import numpy as np
-# import pytesseract
-# import cv2
+#     # ① 反色
+#     inv = cv2.bitwise_not(binary)
 
-# # 安装Tesseract，指定项目里的 tesseract.exe
-# #pytesseract.pytesseract.tesseract_cmd = os.path.join("C:\\Program Files\\Tesseract-OCR", "tesseract.exe")
-# pytesseract.pytesseract.tesseract_cmd = os.path.join("D:\\Tesseract-OCR", "tesseract.exe")
+#     # ② 参数
+#     kernel_len = max(15, w // 4)   # 曲线越长，这个越大
+#     angles = list(range(-80, 81, 5))  # 多角度扫描（-80° ~ 80°）
 
+#     extracted_all = np.zeros_like(inv)
 
+#     for angle in angles:
+#         # ③ 生成水平线核
+#         base = np.zeros((kernel_len, kernel_len), np.uint8)
+#         base[kernel_len//2, :] = 1
 
-# def ocr_image_from_base64(base64_data):
-#     # 1️⃣ 去掉 Base64 前缀
-#     if base64_data.startswith("data:image"):
-#         base64_data = base64_data.split(",")[1]
+#         # ④ 旋转核
+#         M = cv2.getRotationMatrix2D(
+#             (kernel_len//2, kernel_len//2),
+#             angle,
+#             1.0
+#         )
+#         rotated_kernel = cv2.warpAffine(base, M, (kernel_len, kernel_len))
+#         rotated_kernel = (rotated_kernel > 0).astype(np.uint8)
 
-#     # 2️⃣ 解码并打开图片
-#     image_bytes = base64.b64decode(base64_data)
-#     image = Image.open(BytesIO(image_bytes))
+#         # ⑤ 抽取该方向线段
+#         lines = cv2.morphologyEx(
+#             inv,
+#             cv2.MORPH_OPEN,
+#             rotated_kernel,
+#             iterations=1
+#         )
 
-#     # 处理 RGBA 图片，白色背景
-#     if image.mode == "RGBA":
-#         background = Image.new("RGB", image.size, (255, 255, 255))
-#         background.paste(image, mask=image.split()[3])
-#         image = background
+#         extracted_all = cv2.bitwise_or(extracted_all, lines)
 
-#     # 3️⃣ 转灰度
-#     gray = image.convert("L").copy()
-#     np_gray = np.array(gray, dtype=np.uint8)
+#     # ⑥ 从原图中减去所有方向线
+#     removed = cv2.subtract(inv, extracted_all)
 
-#     # 4️⃣ 自适应阈值二值化
-#     np_binary = cv2.adaptiveThreshold(np_gray, 255,
-#                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-#                                       cv2.THRESH_BINARY, 11, 2)
+#     # ⑦ 反色
+#     result = cv2.bitwise_not(removed)
 
-#     # 5️⃣ 轻微去噪
-#     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
-#     np_clean = cv2.morphologyEx(np_binary, cv2.MORPH_OPEN, kernel)
+#     # ⑧ 修复字符断裂
+#     fix_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+#     result = cv2.morphologyEx(result, cv2.MORPH_CLOSE, fix_kernel, iterations=1)
 
-#     # 6️⃣ 去掉大黑边并增加边距
-#     coords = np.column_stack(np.where(np_clean > 0))
-#     if coords.size == 0:
-#         return "识别失败：未找到非黑区域"
-
-#     y0, x0 = coords.min(axis=0)
-#     y1, x1 = coords.max(axis=0)
-#     margin = 2  # 增加边距
-#     y0 = max(y0 - margin, 0)
-#     x0 = max(x0 - margin, 0)
-#     y1 = min(y1 + margin, np_clean.shape[0] - 1)
-#     x1 = min(x1 + margin, np_clean.shape[1] - 1)
-#     cropped = np_clean[y0:y1 + 1, x0:x1 + 1]
-
-#     # 7️⃣ 放大图像
-#     h, w = cropped.shape
-#     cropped_resized = cv2.resize(cropped, (w * 4, h * 4), interpolation=cv2.INTER_LINEAR)
-#     pil_img = Image.fromarray(cropped_resized)
-
-#     # 8️⃣ OCR识别：逐个字符，拼接保证最后字符识别
-#     data = pytesseract.image_to_data(
-#         pil_img,
-#         config="--psm 8 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-#         output_type=pytesseract.Output.DICT
-#     )
-#     text = ''.join([c for c in data['text'] if c.strip() != ''])
-
-#     return text.strip()
+#     return result
