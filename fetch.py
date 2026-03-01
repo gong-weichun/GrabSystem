@@ -12,6 +12,7 @@ def fetch_thread():
     SeatType = 0
 
     TelephoneNum = "15864230665"
+    userName=global_resources.UserName
     clientIp = "36.232.72.58"
     ifNeedSelectArea = False
     floorNo = ""
@@ -19,7 +20,6 @@ def fetch_thread():
     areaNo = ""
     areaName = ""
     sntv = ""
-    scheduleNo = "100001"
     sellTypeCode = "ST0001"
     pocCode = "SC0002"
     trafficCtrlYn = ""
@@ -44,7 +44,7 @@ def fetch_thread():
     blockTypeCode = ""
     rsrvStep = "SAT"
     rsrvSeq = ""
-    zamEnabled = ""
+    zamEnabled = "0"
     zamKey = ""
     stvn_view_list = ";"
     mapClickYn = ""
@@ -65,16 +65,15 @@ def fetch_thread():
     seatId=""
     encryptedSeatIds=""
     unionpayUrl = ""
-
+    MemberKey = global_resources.MemberKey
+    EventID = global_resources.EventID
+    scheduleNo = global_resources.ScheduleNo
+    requestInterval = global_resources.TimeDelay
+    areaNo = global_resources.areaNo
+    SeatType = int(global_resources.seatType)
     client = TLSHttpClient()
     while True:
         try:
-            MemberKey = global_resources.MemberKey
-            EventID = global_resources.EventID
-            scheduleNo = global_resources.ScheduleNo
-            requestInterval=global_resources.TimeDelay
-            areaNo=global_resources.areaNo
-            SeatType=int(global_resources.seatType)
             global_resources.seatId = seatId
             global_resources.encryptedSeatIds = encryptedSeatIds
             if SeatType==0:
@@ -329,41 +328,64 @@ def fetch_thread():
                             LogMessage("get请求失败")
                     elif SeatType == 1:#直接选座位
                         callBack = "getSeatListCallBack"
-                        strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?v=1&callback=" + callBack
-                        strRequestParameter = "prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=&pocCode=" + pocCode + "&corpCodeNo="
-                        requestResponse = client.post(strRequestUrl, strRequestParameter)
-                        LogMessage("post返回状态：" + str(requestResponse.status_code))
-
+                        strRequestUrl = "https://tkglobal.melon.com/tktapi/product/seat/seatMapList.json?callback=" + callBack
+                        strRequestParameter = "&v=1&prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&blockId=" + blockId + "&pocCode=" + pocCode + "&corpCodeNo="
+                        requestResponse = client.get(strRequestUrl + strRequestParameter)
+                        LogMessage("获取当前区域的所有座位信息,返回状态：" + str(requestResponse.status_code))
                         if (requestResponse.status_code == 200):
                             strResponseHtml = requestResponse.text
                             LogMessage(strResponseHtml)
-
                             jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                             seatMapListHelper = json.loads(jsonResult)  # 在这里获得座位信息
+
                             if (seatMapListHelper["seatData"] != None):
+                                # areaNo = seatMapListHelper["seatData"]["da"]["sb"][0]["sntv"]["a"]
+                                # floorNo = seatMapListHelper["seatData"]["da"]["sb"][0]["sntv"]["f"]
+                                # sntv = floorNo + "," + areaNo
+                                # areaName = seatMapListHelper["seatData"]["snt"]["a"]["name"]
+                                # floorName = seatMapListHelper["seatData"]["snt"]["f"]["name"]
+                                areaNo = ""
+                                floorNo = ""
+                                sntv = ""
+                                areaName = ""
+                                floorName = ""
                                 seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                 seatId = ""
                                 for itemSt in seatMapListHelper["seatData"]["st"]:
                                     if (seatId == ""):
                                         for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
-                                            if (itemSs["sid"] != None):  # sid为null表示座位被选走
+                                            if itemSs["sid"] != None:  # sid为null表示座位被选走
                                                 seatId = itemSs["sid"]
                                                 break
-                                            else:
-                                                callBack = "getBlockGradeSeatCountCallBack"
-                                                strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
-                                                strRequestParameter = "chkcapt=" + strCaptchaKey + "&prodId=" + EventID
-                                                requestResponse = client.get(strRequestUrl + strRequestParameter)
-                                                LogMessage("get返回状态：" + str(requestResponse.status_code))
-                                                if (requestResponse.status_code == 200):
-                                                    strResponseHtml = requestResponse.text
-                                                    LogMessage(strResponseHtml)
-                                                    jsonResult = process_jsonp_response_robust(strResponseHtml,"/**/" + callBack)
-                                                    excuteState = 7
-                                                else:
-                                                    LogMessage("get请求失败")
+                                        if (seatId == ""):
+                                            excuteState = 100
+                                            break
+                                    else:
+                                        callBack = "getBlockGradeSeatCountCallBack"  #
+                                        strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/summary.json?v=1&callback=" + callBack
+                                        strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&perfDate=" + perfDate + "&langCd=EN"
+                                        requestResponse = client.post(strRequestUrl, strRequestParameter)
+                                        LogMessage("获取初始区域,返回状态：" + str(requestResponse.status_code))
+
+                                        if (requestResponse.status_code == 200):
+                                            strResponseHtml = requestResponse.text
+                                            LogMessage(strResponseHtml)
+                                            jsonResult = process_jsonp_response_robust(strResponseHtml,
+                                                                                       "/**/" + callBack)
+                                            obj = json.loads(jsonResult)
+                                            stvn_view_list = ""
+                                            # for itemSt in obj["summary"]:
+                                            #     stvn_view_list += itemSt["sntvList"]
+                                            #     stvn_view_list += ";"
+                                            # stvn_view_list = stvn_view_list[:-1]
+                                            #zamEnabled=0
+                                            excuteState = 7
+                                            break
+                                        else:
+                                            LogMessage("get请求失败")
                         else:
                             LogMessage("post请求失败")
+
                 elif excuteState == 7:#座位选择完成prodlimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13))+ "_" + str(
                         int(round(time.time() * 1000)))
@@ -372,7 +394,7 @@ def fetch_thread():
                                           + "&perfDate=" + perfDay + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode \
                                           + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=" + seatGradeNo + "&seatGradeName=" + seatGradeName + "&blockId=" + blockId + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName \
                                           + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" + prodTypeCode + "&flplanTypeCode=" + flplanTypeCode + "&scheduleTypeCode=" + scheduleTypeCode + "&seatTypeCode=" + seatTypeCode \
-                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + zamEnabled + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn \
+                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + str(zamEnabled) + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn \
                                           + "&netfunnel_key=&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn + "&seatId=" + seatId + "&clipSeatId=&chkcapt="+strCaptchaKey
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     LogMessage("返回状态：" + str(requestResponse.status_code))
@@ -426,7 +448,7 @@ def fetch_thread():
                                           + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=" + \
                                           "&blockId=" + blockId + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" \
                                           + prodTypeCode + "&flplanTypeCode=" + flplanTypeCode + "&scheduleTypeCode=" + scheduleTypeCode + "&seatTypeCode=" + seatTypeCode \
-                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + zamEnabled + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn + "&netfunnel_key=" + \
+                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + str(zamEnabled) + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn + "&netfunnel_key=" + \
                                           "&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn + "&priceNo=" + priceNo + "&rsrvVolume=" + rsrvVolume + "&chkcapt=" + strCaptchaKey
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
@@ -447,7 +469,7 @@ def fetch_thread():
                                           + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfMainName=" + perfMainName + "&seatGradeNo=&seatGradeName=&blockId=" + blockId \
                                           + "&sntv=" + sntv + "&blockTypeCode=" + blockTypeCode + "&floorNo=" + floorNo + "&floorName=" + floorName + "&areaNo=" + areaNo + "&areaName=" + areaName + "&prodTypeCode=" + prodTypeCode \
                                           + "&flplanTypeCode=" + flplanTypeCode + "&scheduleTypeCode=" + scheduleTypeCode + "&seatTypeCode=" + seatTypeCode \
-                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + zamEnabled + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn + "&netfunnel_key=" + \
+                                          + "&jType=I&cardGroupId=&cardBpId=&cardMid=&rsrvStep=" + rsrvStep + "&zamEnabled=" + str(zamEnabled) + "&zamKey=" + zamKey + "&trafficCtrlYn=" + trafficCtrlYn + "&netfunnel_key=" + \
                                           "&stvn_view_list=" + stvn_view_list + "&mapClickYn=" + mapClickYn
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
@@ -461,7 +483,7 @@ def fetch_thread():
                 elif excuteState == 11:#好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
                     strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_847%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+689+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%2C%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_776%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+619+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D" + \
-                                          "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName=weichun+gong&payAmt=322000" + \
+                                          "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName="+userName+"&payAmt=322000" + \
                                           "&perfMainName=" + perfMainName \
                                           + "&midOptionKey=%EC%98%A8%EB%9D%BC%EC%9D%B8_%ED%95%B4%EC%99%B8_%EC%9D%B8%EC%A6%9D_%EC%9D%BC%EB%B0%98&staticDomain=&httpsDomain=&quota=00" + \
                                           "&tel=" + TelephoneNum + "&rsrvSeq=" + rsrvSeq + "&payMethodCode=AP0012&httpDomain=&card_pay_method=GLB"

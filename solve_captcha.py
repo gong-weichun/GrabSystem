@@ -43,7 +43,7 @@ def ocr_image_from_base64(base64_data):
 
     np_binary = remove_single_overlay_curve_full_angle_with_repair(np_binary)
     pil_img = Image.fromarray(np_binary)
-    pil_img.show()
+    #pil_img.show()
 
     # 13️⃣ OCR识别：调整 Tesseract 参数和 OCR 引擎
     config = "--psm 8 --oem 3 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # 仅支持大写字母

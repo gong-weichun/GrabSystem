@@ -28,6 +28,7 @@ if 'PROXIES' in config.sections():
 #raw_header = config['config']['header']
 #raw_proxies = config['config']['proxys']
 TimeDelay = float(config['settings']['timedelay'])
+UserName = config['settings']['username']
 MemberKey = config['settings']['memberkey']
 EventID = config['settings']['eventid']
 ScheduleNo = config['settings']['scheduleno']

@@ -173,6 +173,9 @@ class UiWindow:
         # 清空文本框
         self.entry_new_text.delete(0, tk.END)
     def get_and_clear_seat_info(self,seatId,encryptedSeatIds):
+        # 清空原内容
+        self.text_seat_id.delete("1.0", tk.END)
+        self.text_encrypted_seat_ids.delete("1.0", tk.END)
         self.text_seat_id.insert(tk.END, f"{seatId}\n")
         self.text_encrypted_seat_ids.insert(tk.END, f"{encryptedSeatIds}\n")
 
