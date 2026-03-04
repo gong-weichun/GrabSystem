@@ -461,7 +461,7 @@ def fetch_thread():
                         LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 10:  # 提交支付delivery
+                elif excuteState == 10:  # 提交支付delivery,这里调用成功后到准备提交的界面
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack
@@ -480,7 +480,47 @@ def fetch_thread():
                         excuteState = 11
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 11:#好像没什么用
+                elif excuteState == 11:  # 点击checkout后先调用getNoRsrvSeqHandler
+                    callBack = "getNoRsrvSeqHandler"
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/getNoRsrvSeq.json?v=1&callback="+ callBack
+                    strRequestParameter = "jType=I&delvyTypeCode=DV0004&tel=15864230665&email=877605465%40qq.com&recv_country=&recv_name=&recv_address=&recv_city="+\
+                                           "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012"+\
+                                            "&cardCode=FOREIGN_CHINABANK&cardCodeName=UnionPay&autheTypeCode=AT0005&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on"+\
+                                            "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=212811&pocCode=SC0002&scheduleNo=100001&rsrvVolume=1"+\
+                                            "&payAmt=475000&cardBpId=&cardMid=&priceNo=10067&seatId=1_0&advtkNo=&"+\
+                                             "seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%221_0%22%2C%22clipSeatId%22%3A%220%22%2C%22gradeNm%22%3A%223%EC%9D%BC%EA%B6%8C%22%2C%22seatNm%22%3A%22%EB%B9%84%EC%A7%80%EC%A0%95%22%2C%22basePrice%22%3A470000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D"
+                    requestResponse = client.post(strRequestUrl, strRequestParameter)
+                    if (requestResponse.status_code == 200):
+                        strResponseHtml = requestResponse.text
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        if "resultCode" in dicResponseResult:
+                            resultCode = dicResponseResult["resultCode"]
+                            if resultCode == "0000":
+                                noRsrvSeatSeqs = dicResponseResult["noRsrvSeatSeqs"][0]
+                                excuteState = 12
+                    else:
+                        LogMessage("请求失败")
+                elif excuteState == 12:  # 点击checkout后调用saveHandler
+                    callBack = "saveHandler"
+                    strRequestUrl = "tkglobal.melon.com/tktapi/glb/reservation/save.json?v=1&callback="+ callBack
+                    strRequestParameter = ("jType=I&delvyTypeCode=DV0004&tel=15864230665&email=877605465%40qq.com&recv_country=&recv_name=&recv_address=&recv_city="+
+                                           "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012"+
+                                           "&cardCode=FOREIGN_CHINABANK&cardCodeName=UnionPay&autheTypeCode=AT0005&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on&chkAgree=on"+
+                                           "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=212811&pocCode=SC0002&scheduleNo=100001&rsrvVolume=1&payAmt=475000&cardBpId="+
+                                           "&cardMid=&priceNo=10067&seatId=1_0&advtkNo=&"+
+                                           "seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%221_0%22%2C%22clipSeatId%22%3A%220%22%2C%22gradeNm%22%3A%223%EC%9D%BC%EA%B6%8C%22%2C%22seatNm%22%3A%22%EB%B9%84%EC%A7%80%EC%A0%95%22%2C%22basePrice%22%3A470000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D"+
+                                           "&noRsrvSeatSeq="+noRsrvSeatSeqs+"&firstSeatId=1_0&sellTypeCode=ST0001&chkcapt=")
+                    requestResponse = client.post(strRequestUrl, strRequestParameter)
+                    if (requestResponse.status_code == 200):#
+                        strResponseHtml = requestResponse.text
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        LogMessage(strResponseHtml)
+                        excuteState = 13
+                    else:
+                        LogMessage("请求失败")
+                elif excuteState == 13:#点击checkout后调用，好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
                     strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_847%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+689+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%2C%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_776%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+619+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D" + \
                                           "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName="+userName+"&payAmt=322000" + \
@@ -489,7 +529,7 @@ def fetch_thread():
                                           "&tel=" + TelephoneNum + "&rsrvSeq=" + rsrvSeq + "&payMethodCode=AP0012&httpDomain=&card_pay_method=GLB"
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
-                        excuteState = 12
+                        excuteState = 14
                         # strResponseHtml = requestResponse.text
                         # dicResponseResult = json.loads(strResponseHtml)
                         # if "DATA" in dicResponseResult:
@@ -499,7 +539,7 @@ def fetch_thread():
                         # LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 12:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
+                elif excuteState == 14:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
                     strRequestUrl = "https://stdpay.inicis.com/jsApi/union/requestVerify"
                     strRequestParameter = "cardCode=26&cardQuota=00&Ocbcard1=&Ocbcard2=&Ocbcard3=&Ocbcard4=&plan=lpointType2&chkLpointUse=on&lCardNo1=" + \
                                           "&lCardNo2=&lCardNo3=&lCardNo4=&lCardPw=&usePoint=&cardCodesNormal=21%2C22%2C23%2C24%2C25&cardCodesVisa3dDacom=12%2C14%2C41%2C32%2C53%2C48%2C04" + \
@@ -546,6 +586,17 @@ def fetch_thread():
                     requestResponse = client.get(unionpayUrl)
                     if (requestResponse.status_code == 200):
                         LogMessage("调用支付接口，返回成功！")
+                        strResponseHtml = requestResponse.text
+                        dicResponseResult = json.loads(strResponseHtml)
+                    else:
+                        LogMessage("调用支付接口，返回：" + str(requestResponse.status_code))
+                    break
+                elif excuteState == 14:#输入卡号点击下一步
+                    strRequestUrl = "https://cashierbj.95516.com/b2c/cardValidate.action?r=0.6451304326219437"
+                    strRequestParameter = "cardNumber=1111111111111111111&transNumber=703923918586156711954"#卡号和网站的后缀https://cashiermd.95516.com/b2c/showCard.action?transNumber=745144591118533743724
+                    requestResponse = client.post(strRequestUrl,strRequestParameter)
+                    if (requestResponse.status_code == 200):
+
                         strResponseHtml = requestResponse.text
                         dicResponseResult = json.loads(strResponseHtml)
                     else:
