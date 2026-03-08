@@ -6,12 +6,13 @@ from http_helper import TLSHttpClient
 import global_resources
 from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
-from urllib.parse import parse_qs, unquote
+from urllib.parse import parse_qs, unquote, quote
 
 def fetch_thread():
     SeatType = 0
 
-    TelephoneNum = "15864230665"
+    TelephoneNum = str(global_resources.telNum)
+    tel=global_resources.telNum
     userName=global_resources.UserName
     clientIp = "36.232.72.58"
     ifNeedSelectArea = False
@@ -19,6 +20,11 @@ def fetch_thread():
     floorName = ""
     areaNo = ""
     areaName = ""
+    rowNo = ""
+    rowName = ""
+    seatNo = ""
+    seatNumberName = ""
+    seatName=""#完整的座位名，几楼几区域几排几号
     sntv = ""
     sellTypeCode = "ST0001"
     pocCode = "SC0002"
@@ -50,6 +56,12 @@ def fetch_thread():
     mapClickYn = ""
     priceNo = ""
     rsrvVolume = ""
+    cardBpId=""
+    cardBpName=""
+    printOrder=""
+    autheTypeCode=""
+    autheTypeName=""
+    commCode=""
     excuteState = 0
     strRequestUrl = ""  # 请求地址
     strRequestParameter = ""  # 请求参数
@@ -60,11 +72,13 @@ def fetch_thread():
     strQueCode = ""  # 发起排队请求后返回的编码
     strQueKey = ""  # 发起排队请求后返回的key值
     strCaptchaKey = ""  # 验证码提交后返回的key值
+    noRsrvSeatSeqs=""
     requestInterval = 500  # 请求间隔
     waitNum = 0
     seatId=""
     encryptedSeatIds=""
     unionpayUrl = ""
+    unavailableSeatID_list=[]
     MemberKey = global_resources.MemberKey
     EventID = global_resources.EventID
     scheduleNo = global_resources.ScheduleNo
@@ -75,6 +89,7 @@ def fetch_thread():
     while True:
         try:
             global_resources.seatId = seatId
+            global_resources.seatName = seatName
             global_resources.encryptedSeatIds = encryptedSeatIds
             if SeatType==0:
                 mapClickYn = "Y"
@@ -106,6 +121,7 @@ def fetch_thread():
                         LogMessage("http返回："+str(requestResponse.status_code))
                         time.sleep(1)
                 elif excuteState == 1:
+                    unavailableSeatID_list.clear()
                     if trafficCtrlYn.upper() == "Y":
                         if strQueCode == "":
                             strRequestUrl = "https://zam.melon.com/ts.wseq?opcode=5101&nfid=0&prefix=NetFunnel.gRtype=5101;&ttl=2&sid=service_1&aid=" + nflActId + "&js=yes&user_data=" + MemberKey + "&" + str(
@@ -150,6 +166,7 @@ def fetch_thread():
                         strQueCode = ""
                         excuteState = 2
                 elif excuteState == 2:  # 处理验证码
+
                     if strCaptchaKey == "":  # 第一次请求时要处理验证码
                         strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/captChaImage.json?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&t=" + str(
                             int(round(time.time() * 1000)))
@@ -303,19 +320,32 @@ def fetch_thread():
                                             sntv=floorNo+","+areaNo
                                             areaName = seatMapListHelper["seatIdxData"]["snt"]["a"]["name"]
                                             floorName = seatMapListHelper["seatIdxData"]["snt"]["f"]["name"]
+                                            rowName = seatMapListHelper["seatIdxData"]["snt"]["r"]["name"]
+                                            seatNumberName = seatMapListHelper["seatIdxData"]["snt"]["n"]["name"]
                                             seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
-                                            seatId = ""
+
                                             for itemSt in seatMapListHelper["seatData"]["st"]:
                                                 if (seatId == ""):
                                                     for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
-                                                        if itemSs["sid"] != None:  # sid为null表示座位被选走
+                                                        if (itemSs["sid"] != None):  # sid为null表示座位被选走
                                                             seatId = itemSs["sid"]
+                                                            rowNo = itemSs["rn"]
+                                                            seatNo = itemSs["sn"]
+                                                            seatName=floorNo+" " + floorName+ " " + areaNo+ " " + areaName+ " " + rowNo + " " + rowName+ " " + seatNo + " " + seatNumberName
                                                             excuteState = 7
                                                             break
                                                     if(seatId == ""):
                                                         excuteState = 100
                                                         break
                                                 else:
+                                                    for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
+                                                        if (itemSs["sid"] != None)&(itemSs["sid"] != seatId)&(itemSs["sid"] not in unavailableSeatID_list):  # sid为null表示座位被选走
+                                                            seatId = itemSs["sid"]
+                                                            rowNo = itemSs["rn"]
+                                                            seatNo = itemSs["sn"]
+                                                            seatName = floorNo + " " + floorName+ " " + areaNo + " " + areaName+ " " + rowNo + " " + rowName+ " " + seatNo + " " + seatNumberName
+                                                            excuteState = 7
+                                                            break
                                                     excuteState = 7
                                                     break
                                     else:
@@ -349,6 +379,8 @@ def fetch_thread():
                                 sntv = ""
                                 areaName = ""
                                 floorName = ""
+                                rowName = seatMapListHelper["seatIdxData"]["snt"]["r"]["name"]
+                                seatNumberName = seatMapListHelper["seatIdxData"]["snt"]["n"]["name"]
                                 seatTypeCode = seatMapListHelper["seatData"]["da"]["sb"][0]["sbt"]
                                 seatId = ""
                                 for itemSt in seatMapListHelper["seatData"]["st"]:
@@ -356,6 +388,9 @@ def fetch_thread():
                                         for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
                                             if itemSs["sid"] != None:  # sid为null表示座位被选走
                                                 seatId = itemSs["sid"]
+                                                rowNo = itemSs["rn"]
+                                                seatNo = itemSs["sn"]
+                                                seatName = rowNo + " " + rowName+ " " + seatNo + " " + seatNumberName
                                                 break
                                         if (seatId == ""):
                                             excuteState = 100
@@ -370,15 +405,9 @@ def fetch_thread():
                                         if (requestResponse.status_code == 200):
                                             strResponseHtml = requestResponse.text
                                             LogMessage(strResponseHtml)
-                                            jsonResult = process_jsonp_response_robust(strResponseHtml,
-                                                                                       "/**/" + callBack)
+                                            jsonResult = process_jsonp_response_robust(strResponseHtml,"/**/" + callBack)
                                             obj = json.loads(jsonResult)
                                             stvn_view_list = ""
-                                            # for itemSt in obj["summary"]:
-                                            #     stvn_view_list += itemSt["sntvList"]
-                                            #     stvn_view_list += ";"
-                                            # stvn_view_list = stvn_view_list[:-1]
-                                            #zamEnabled=0
                                             excuteState = 7
                                             break
                                         else:
@@ -406,8 +435,10 @@ def fetch_thread():
                         if ("code" in dicResponseResult):
                             if (dicResponseResult["code"] == "T8270"):#另一个用户正在支付这个座位
                                 excuteState = 6
-                            if (dicResponseResult["code"] == "T0002"):#请完成认证预售
+                            if (dicResponseResult["code"] == "T0002"):#请完成认证预售，可能是vpn问题
                                 LogMessage("请完成认证预售")
+                                strCaptchaKey=""
+                                excuteState = 2
                         elif ("result" in dicResponseResult):#这个位置返回{"code":"T0002","staticDomain":null,"message":"인증예매를 완료해주세요.请完成认证预售。","httpsDomain":null,"httpDomain":null}
                             # excuteState = 8
                             if (dicResponseResult["result"] == "0000"):
@@ -432,15 +463,33 @@ def fetch_thread():
                         strResponseHtml = requestResponse.text
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
-                        excuteState = 9
-                        # if "encryptedSeatIds" in dicResponseResult:
-                        #     strCaptchaKey = dicResponseResult["DATA"]
-                        #     if strCaptchaKey != "":
-                        #         excuteState = 9
+                        if "code" in dicResponseResult:
+                            if dicResponseResult["code"] == "0000":
+                                basePrice=str(dicResponseResult["seatGradeList"][0]["prodTicketTypeList"][0]["basePrice"])
+                                priceNo = str(dicResponseResult["seatGradeList"][0]["prodTicketTypeList"][0]["priceNo"])
+                                seatGradeNo = str(dicResponseResult["seatGradeList"][0]["prodTicketTypeList"][0]["seatGradeNo"])
+                                gradeNm=str(dicResponseResult["seatGradeList"][0]["prodTicketTypeList"][0]["seatGradeName"])
+                                priceName=str(dicResponseResult["seatGradeList"][0]["prodTicketTypeList"][0]["krPriceName"])
+                                excuteState = 9
                         LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 9:  # 选择价格pricelimit
+                elif excuteState == 9:#ticketCancel
+                    callBack = "ticketCancel"
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/cancelfee.json?v=1&callback=" + callBack
+                    strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&perfDate=" + perfDate
+                    requestResponse = client.post(strRequestUrl, strRequestParameter)
+                    if (requestResponse.status_code == 200):
+                        strResponseHtml = requestResponse.text
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        if "code" in dicResponseResult:
+                            if dicResponseResult["code"] == "0000":
+                                excuteState = 10
+                        LogMessage(strResponseHtml)
+                    else:
+                        LogMessage("请求失败")
+                elif excuteState == 10:  # 选择价格pricelimit
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/pricelimit.json?v=1&callback="+ callBack
@@ -457,11 +506,11 @@ def fetch_thread():
                         dicResponseResult = json.loads(jsonResult)
                         if "result" in dicResponseResult:
                             if (dicResponseResult["result"] == "0000"):
-                                excuteState = 10
+                                excuteState = 11
                         LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 10:  # 提交支付delivery,这里调用成功后到准备提交的界面
+                elif excuteState == 11:  # 提交支付delivery,这里调用成功后到准备提交的界面
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack
@@ -477,69 +526,125 @@ def fetch_thread():
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
                         LogMessage(strResponseHtml)
-                        excuteState = 11
-                    else:
-                        LogMessage("请求失败")
-                elif excuteState == 11:  # 点击checkout后先调用getNoRsrvSeqHandler
-                    callBack = "getNoRsrvSeqHandler"
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/getNoRsrvSeq.json?v=1&callback="+ callBack
-                    strRequestParameter = "jType=I&delvyTypeCode=DV0004&tel=15864230665&email=877605465%40qq.com&recv_country=&recv_name=&recv_address=&recv_city="+\
-                                           "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012"+\
-                                            "&cardCode=FOREIGN_CHINABANK&cardCodeName=UnionPay&autheTypeCode=AT0005&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on"+\
-                                            "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=212811&pocCode=SC0002&scheduleNo=100001&rsrvVolume=1"+\
-                                            "&payAmt=475000&cardBpId=&cardMid=&priceNo=10067&seatId=1_0&advtkNo=&"+\
-                                             "seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%221_0%22%2C%22clipSeatId%22%3A%220%22%2C%22gradeNm%22%3A%223%EC%9D%BC%EA%B6%8C%22%2C%22seatNm%22%3A%22%EB%B9%84%EC%A7%80%EC%A0%95%22%2C%22basePrice%22%3A470000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D"
-                    requestResponse = client.post(strRequestUrl, strRequestParameter)
-                    if (requestResponse.status_code == 200):
-                        strResponseHtml = requestResponse.text
-                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
-                        dicResponseResult = json.loads(jsonResult)
-                        if "resultCode" in dicResponseResult:
-                            resultCode = dicResponseResult["resultCode"]
-                            if resultCode == "0000":
-                                noRsrvSeatSeqs = dicResponseResult["noRsrvSeatSeqs"][0]
+                        if "code" in dicResponseResult:
+                            if (dicResponseResult["code"] == "0000"):
+                                memberEmail = quote(dicResponseResult["memberEmail"])
+                                memberName = dicResponseResult["memberName"]
+                                for item in dicResponseResult["cardBpList"]:
+                                    if item["cardBpName"]=="UnionPay":
+                                        cardBpId = str(item["cardBpId"])
+                                        cardBpName = item["cardBpName"]
+                                        printOrder = item["printOrder"]
+                                        autheTypeCode = item["autheTypeCode"]
+                                        autheTypeName = item["autheTypeName"]
+                                        break
+                                tmpseat = {
+                                    "priceNo":int(priceNo),
+                                    "seatId":seatId,
+                                    "gradeNm":gradeNm,
+                                    "seatNm": seatName,
+                                    "basePrice":int(basePrice),
+                                    "priceName":priceName,
+                                    "sejongPriceCode":None
+                                }
+
+                                tmpseat_list = [tmpseat]
+
+                                seatInfoListWithPriceType = quote(json.dumps(tmpseat_list, ensure_ascii=False))
+                                commCode = "DV0002"
                                 excuteState = 12
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 12:  # 点击checkout后调用saveHandler
+                elif excuteState == 12:  # 点击checkout后先调用getNoRsrvSeqHandler
+                    if SeatType==0:
+                        excuteState = 13
+                    else:
+                        callBack = "getNoRsrvSeqHandler"
+                        strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/getNoRsrvSeq.json?v=1&callback=" + callBack
+                        strRequestParameter = "jType=I&delvyTypeCode=" + commCode + "&tel=" + tel + "&email=" + memberEmail + "&recv_country=&recv_name=&recv_address=&recv_city=" + \
+                                              "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012" + \
+                                              "&cardCode=" +cardBpId+ "&cardCodeName=" + cardBpName + "&autheTypeCode=" + autheTypeCode + "&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on" + \
+                                              "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&rsrvVolume=1" + \
+                                              "&payAmt=475000&cardBpId=&cardMid=&priceNo=" + priceNo + "&seatId=" + seatId + "&advtkNo=&" + \
+                                              "seatInfoListWithPriceType="+seatInfoListWithPriceType
+                        requestResponse = client.post(strRequestUrl, strRequestParameter)
+                        if (requestResponse.status_code == 200):
+                            strResponseHtml = requestResponse.text
+                            jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                            dicResponseResult = json.loads(jsonResult)
+                            if "code" in dicResponseResult:
+                                resultCode = dicResponseResult["code"]
+                                if resultCode == "0000":
+                                    noRsrvSeatSeqs = dicResponseResult["noRsrvSeatSeqs"][0]
+                            excuteState = 13
+                        else:
+                            LogMessage("请求失败")
+
+                elif excuteState == 13:  # 点击checkout后调用saveHandler
                     callBack = "saveHandler"
-                    strRequestUrl = "tkglobal.melon.com/tktapi/glb/reservation/save.json?v=1&callback="+ callBack
-                    strRequestParameter = ("jType=I&delvyTypeCode=DV0004&tel=15864230665&email=877605465%40qq.com&recv_country=&recv_name=&recv_address=&recv_city="+
-                                           "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012"+
-                                           "&cardCode=FOREIGN_CHINABANK&cardCodeName=UnionPay&autheTypeCode=AT0005&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on&chkAgree=on"+
-                                           "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=212811&pocCode=SC0002&scheduleNo=100001&rsrvVolume=1&payAmt=475000&cardBpId="+
-                                           "&cardMid=&priceNo=10067&seatId=1_0&advtkNo=&"+
-                                           "seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%221_0%22%2C%22clipSeatId%22%3A%220%22%2C%22gradeNm%22%3A%223%EC%9D%BC%EA%B6%8C%22%2C%22seatNm%22%3A%22%EB%B9%84%EC%A7%80%EC%A0%95%22%2C%22basePrice%22%3A470000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D"+
-                                           "&noRsrvSeatSeq="+noRsrvSeatSeqs+"&firstSeatId=1_0&sellTypeCode=ST0001&chkcapt=")
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/save.json?v=1&callback="+ callBack
+                    if SeatType == 0:
+                        strRequestParameter = (
+                                    "jType=I&delvyTypeCode=" + commCode + "&tel=" + tel + "&email=" + memberEmail + "&recv_country=&recv_name=&recv_address=&recv_city=" +
+                                    "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012" +
+                                    "&cardCode="+cardBpId+"&cardCodeName="+cardBpName+"&autheTypeCode="+autheTypeCode+"&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on&chkAgree=on" +
+                                    "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&rsrvVolume=1&payAmt=140000&cardBpId=" +
+                                    "&cardMid=&priceNo=" + priceNo + "&seatId=" + seatId + "&advtkNo=&" +
+                                    "seatInfoListWithPriceType="+seatInfoListWithPriceType+
+                                    "&firstSeatId=" + seatId + "&sellTypeCode=" + sellTypeCode + "&chkcapt=" + quote(strCaptchaKey))
+                    else:
+                        strRequestParameter = (
+                                    "jType=I&delvyTypeCode=" + commCode + "&tel=" + tel + "&email=" + memberEmail + "&recv_country=&recv_name=&recv_address=&recv_city=" +
+                                    "&recv_state=&recv_zipno=&recv_tel1=&recv_tel2=&recv_country_code=&recv_delvy_price=0&addAddress=&payMethodCode=AP0012" +
+                                    "&cardCode="+cardBpId+"&cardCodeName="+cardBpName+"&autheTypeCode="+autheTypeCode+"&cardQuota=12&quota=00&chkAgreeAll=on&chkAgree=on&chkAgree=on" +
+                                    "&chkAgree=on&chkAgree=on&chkAgree=on&chkAgree=on&prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&rsrvVolume=1&payAmt=140000&cardBpId=" +
+                                    "&cardMid=&priceNo=" + priceNo + "&seatId=" + seatId + "&advtkNo=&" +
+                                    "seatInfoListWithPriceType="+seatInfoListWithPriceType+
+                                    "&noRsrvSeatSeq=" + noRsrvSeatSeqs + "&firstSeatId=" + seatId + "&sellTypeCode=" + sellTypeCode + "&chkcapt=" + quote(strCaptchaKey))
+
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):#
                         strResponseHtml = requestResponse.text
                         jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
                         dicResponseResult = json.loads(jsonResult)
                         LogMessage(strResponseHtml)
-                        excuteState = 13
+
+                        if dicResponseResult["code"]=="0000":
+                            payNo = str(dicResponseResult["payNo"])
+                            rsrvSeq = str(dicResponseResult["rsrvSeq"])
+                            cust_ip = dicResponseResult["cust_ip"]
+                            midOptionKey = dicResponseResult["midOptionKey"]
+                            cardCode = dicResponseResult["cardCode"]
+                            payAmt = str(dicResponseResult["payAmt"])
+                            seatInfoListWithPriceType = dicResponseResult["seatInfoListWithPriceType"]
+                            flplanTypeCode = dicResponseResult["flplanTypeCode"]
+                            perfMainName = dicResponseResult["perfMainName"]
+                            jtype = dicResponseResult["jtype"]
+                            userName = dicResponseResult["userName"]
+                            quota = str(dicResponseResult["quota"])
+                            tel = str(dicResponseResult["tel"])
+                            payMethodCode = dicResponseResult["payMethodCode"]
+
+                            excuteState = 14
+                        elif dicResponseResult["code"]=="T8271":#选择的座位已被移除。（选择座位后5分钟内未完成付款。）
+                            unavailableSeatID_list.append(seatId)
+                            excuteState = 6
+
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 13:#点击checkout后调用，好像没什么用
+                elif excuteState == 14:#点击checkout后调用，好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
-                    strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType=%5B%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_847%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+689+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%2C%7B%22priceNo%22%3A10067%2C%22seatId%22%3A%22404_776%22%2C%22gradeNm%22%3A%22%EC%9D%BC%EB%B0%98%EC%84%9D(%EC%8A%A4%ED%83%A0%EB%94%A9)%22%2C%22seatNm%22%3A%22FLOOR+%EC%B8%B5+ON+%EA%B5%AC%EC%97%AD+619+%EB%B2%88+%22%2C%22basePrice%22%3A154000%2C%22priceName%22%3A%22%EA%B8%B0%EB%B3%B8%EA%B0%80%22%2C%22sejongPriceCode%22%3Anull%7D%5D" + \
-                                          "&cardCode=FOREIGN_CHINABANK&jtype=I&eType=&cust_ip=34.96.1.134&prodId=" + EventID + "&kakaoPayType=&userName="+userName+"&payAmt=322000" + \
+                    strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType="+seatInfoListWithPriceType + \
+                                          "&cardCode="+cardCode+"&jtype="+jtype+"&eType=&cust_ip="+cust_ip+"&prodId=" + EventID + "&kakaoPayType=&userName="+userName+"&payAmt="+payAmt + \
                                           "&perfMainName=" + perfMainName \
-                                          + "&midOptionKey=%EC%98%A8%EB%9D%BC%EC%9D%B8_%ED%95%B4%EC%99%B8_%EC%9D%B8%EC%A6%9D_%EC%9D%BC%EB%B0%98&staticDomain=&httpsDomain=&quota=00" + \
-                                          "&tel=" + TelephoneNum + "&rsrvSeq=" + rsrvSeq + "&payMethodCode=AP0012&httpDomain=&card_pay_method=GLB"
+                                          + "&midOptionKey="+midOptionKey+"&staticDomain=&httpsDomain=&quota="+quota + \
+                                          "&tel=" + tel + "&rsrvSeq=" + rsrvSeq + "&payMethodCode="+payMethodCode+"&httpDomain=&card_pay_method=GLB"
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
-                        excuteState = 14
-                        # strResponseHtml = requestResponse.text
-                        # dicResponseResult = json.loads(strResponseHtml)
-                        # if "DATA" in dicResponseResult:
-                        #     strCaptchaKey = dicResponseResult["DATA"]
-                        #     if strCaptchaKey != "":
-                        #         excuteState = 12
-                        # LogMessage(strResponseHtml)
+                        excuteState = 15
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 14:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
+                elif excuteState == 15:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
                     strRequestUrl = "https://stdpay.inicis.com/jsApi/union/requestVerify"
                     strRequestParameter = "cardCode=26&cardQuota=00&Ocbcard1=&Ocbcard2=&Ocbcard3=&Ocbcard4=&plan=lpointType2&chkLpointUse=on&lCardNo1=" + \
                                           "&lCardNo2=&lCardNo3=&lCardNo4=&lCardPw=&usePoint=&cardCodesNormal=21%2C22%2C23%2C24%2C25&cardCodesVisa3dDacom=12%2C14%2C41%2C32%2C53%2C48%2C04" + \
@@ -559,7 +664,7 @@ def fetch_thread():
                                           "&rentalCompPhone=&subCompanyAddr=&site_id=&uway_logo_url=&goodsoid=&buyeremail=&aid=ticketon0520250813004352969_3BCF3BD47407&charset=UTF-8&ini_safetykey_reg=" + \
                                           "&useragent=Chrome_Win10+%5B+mozilla%2F5.0+(windows+nt+10.0%3B+win64%3B+x64)+applewebkit%2F537.36+(khtml%2C+like+gecko)+chrome%2F138.0.0.0+safari%2F537.36+%5D&mid=ticketon05&pgIp=" + \
                                           "&fds_sno=031611&languageView=en&limitTimeAlertTime=10&basicInfo=UaTqX9k8kZm4TPKeQzM8ADlfNhNHE%2Bkg6J4FYnbLUgH1t212F8fHw%2F%2FIEFEbUg1W%0D%0ApW%2FdqBbGFbW7CFA7lEJ1d7Dg%2Bysrov8FUBR9vFxa%2BdB5mToWLLDvOr1ekqOAteDb%0D%0AK5RqP42PjuzJcqaG8YYyrispkFqUCynAPj3XFB1qnVwKhKIngzjLsvWotcSrYgvZ%0D%0A7GR7Wd4lqnl8LD9%2B47gyMDY5lDlUKNz05OC2JRJ%2BWObpEwvmRjQ7zRwtmd69qzlO%0D%0A%2FW0%2BovT%2F8IHjGL5miLDMQCQEWoNd%2BeJLp6cpQInRdTzV2PPjX4oqOInbQibfstyG%0D%0ASme80wV5VoYdUg5QqgXcPE%2FvRf%2F27sA0Pt1mfhn4oiZGgpKtRj6R3yUi%2BqDIECtr%0D%0AVBY9DnQFOuQNFfVmNZZXH6xQqIB1X%2BxIrYM7CpBIdUczgqD4Uel7i1gkHydQxiAo%0D%0Ahr3I%2BSw68pVrAQAL8kybjGE%2BkCKnMbhFbqnZ5yCnozfL5zv%2BGvK4crqjKgl3NSfK%0D%0ApYEF6xcI%2FqO%2B2leASIm2zvnyOpFdTw%2Frn6tuUXvZWa%2FvpGlGkjslf5X1GH4pGHjo%0D%0AyOBLsAsH%2BW%2FoB9E8GbC7R5AJw48iFC9ikI7zhr7oiyj33uFXeUO%2FQGrdxO9cwy33%0D%0ArnSPIaXtszDq0Y%2Bt2SAqnb3URTzCY%2BmnghJK%2FC9yfuMIKPzk2FEDLxqdvJuFW3AR%0D%0Aj1IPavBKBnYqUghkGgdaW5OiOwu1pdnqnT8y3qAU4%2FtXP1q%2F7%2Bu%2F%2FVUpnQndhmSi%0D%0AygdG99%2BiLZPT8uNn1V80XV%2BefWamQjM6Apdgr7ZThDfPGfPRKle7FPnIodU8i8UZ%0D%0A9UEQ%2B9BoRibgiAYbzOwwGERJhUFWUC%2FA1ASdmg2q2EsqWgzBknEaQdJXQCLJ1hPI%0D%0Af3srR2TNeQUtpi%2FjG7QhP1s2K6L4Xy0bMiE%2FjjvZK56%2FpNiVWeb1HAul1YEBgNOh%0D%0ATl0nZsA9yjcyAjiGeUC42CWgThzyT%2B5F9KmWo%2FOJHbSQt3Gze7L7Sf0ZmIrlZ%2FUi%0D%0AyNs8CavZIBZgix2KdRWelg3KeMUbnaF7L9Ste4VtMNyYj2irSoYMJVuHLI3nOgcA%0D%0Ai86NjQtO%2BUesInZz%2FW5yICWWi6va81UAaykV%2FaxUi627KOrRJ7M2IDq7RLy0UNEU%0D%0A%2BzGmZnZ4%2FArQtojonJJqDqxQbcuYMbZfisJnhB4Xu3ezWEsG5lfizgLjfvdh65EN%0D%0A8eTUOXHpHNb5jm2bQgS8rrXqcI8DL5YZeJKHd0TQ42HxHHOOxAqioRyKEdbmnHax%0D%0A%2Fhq8mz37oDPBBTZ4tMGzs7LRm2cTgjQhBauCAFhYsSr9VrvgsdUFMXgba6hR5KIM%0D%0ABvnrDznT4gA0cDeMIRITmUOd9CRN%2F76wiUSkYjlcD%2B2%2B4tAz5fITizEQpYIZhkBt%0D%0Aq047KDirYdfCpswGlU9I8HSkgeOUrjVOX3kIcZQNz38ki7lj%2Fg6yUeN0DfDOZt31%0D%0AqPSHgQch3U6WD10EWBf8TjIC0w2Yd%2BHc3G6FVh0uq6ZE5pBZI4tp1zHek28Tq557%0D%0AzSpDmVO6OwiilLMGTX9GhFVnmTHOZR%2BNmIs9Fa54RF0Tqn%2BVaCSfAfcTXOcIMhT8%0D%0AiiyMYGcDYa6d%2BNTT7xfeiaGwqLeI9anKHRvIQolwoaDlOP1Zqua%2FEpc7K9WvR9F2%0D%0AipEW8dUjAAzqk0vYcRzHR0YlmmlCu1notjQ9KGCct5GMFH8Ng1WkSaBM3gdoJ%2Bm3%0D%0AKRtnN0fL2L3Uf2IYaNp9RYoUO9u2smXcsZ7JjTlQNN%2BN9gAMuPNx9%2Bq%2Bv9bAyATt%0D%0AZLbGQyK%2BQeesUXxX9ifa0Se83LIIE0%2BNm8kZ3KvZzm3EjWIWxe4Vt%2BfFpij0Pqvq%0D%0AEHAGG6Ei%2B8%2FQGOcUe1uU7t8jbnOzjlzB2izqJy%2F9Rwc8uPxl3vtngEy%2BAWicUxon%0D%0AIPwvjjCN96LgnF4lhh1Im1oDtJLz%2F6Skc5mEsktqSr5bpFYQMk8P7kvQuImyGeLI%0D%0A369w0OX8ZgYrkMDie5Q23wvJ7dcXk5ocFHvUhCVbveNoqExOIkJDErqHJA64vMpY%0D%0AxbpqYb9MdnpfA9EcbsMU%2F59hMDCwwmd7NRkhhp%2FmGyWUTJcN%2BbYHSqOJZeHNeXn0%0D%0ApYMDS2amNACrcjGd8tnI%2FrKJptNkYrGhtjLTreXOjqtxRRMIAA0E6K1RY5WYgmjs%0D%0Aqotg2WvzySqU2zM6ozT6b6jYK2FRnGue2zIW3vVbpC%2B8FT7IIm4AC64dxfpSP%2FPx%0D%0AtLrAyAX4X9DrLOw2dj%2BXNYeHs8xSflQP7WrI7fGaj2Yf4d0OyFRy7vRWRJmHR2AO%0D%0AOpEGojwMvRlE0uSGuZBQUl247mHKP%2F7uBNbwJ43bsX6y%2BtQqNIeXXJmm54PT81%2B7%0D%0ACyUtkhb61sejhgHMLigI%2BmaozV7RyJP%2FCeqBCRiAt7TUSi55EWB5ZTMvFU6oQ5RX%0D%0AkFCfsKMJn71RrcjawTnQSJDrrAoZ7%2BwYwSt1araPbNVgrSGOhxcfITKZ9t9UZRFD%0D%0ApFUbWsT9XhOcPgBEtOJUF%2FRoFMn5Sx%2BZKzUWvPk4nfhXrRu5GaBRR1%2FNDZ8HA9u%2F%0D%0AyiEkrHvADo%2BFIXY5L8XPq35Dfiydk%2FL5klSAWdrJP3pGltJ2UYqARnIEhvOfsUcG%0D%0AqPFwfS8DtNYlojGlEhM7y4ksLzF9mjZdEeLzMtTm4NyACHf9UyKIgvQ%2BDF5rf8%2BY%0D%0AI1SrJSklVioyeHZRopZuWol4XmbIiaIJTHq2fmn20JN4Ohw0r%2B1hSAEeUanETC41%0D%0AEGQwiJkDTS9Mk9PZhD5VnpnNJbMhJFS3dSmf8IlknZgsx9HZwaTpJ%2BSeRKhHhOVV%0D%0A5xdSGzFBZGEGjBtynRYlIHc36vt0oVBPpjBqkGl%2FtryBRldTvrsfqIVLU2FlXCHY%0D%0A0wVbVuunKvmTZ7lXJgfU08P1HTJ4FyZPUAOscfV6cRxKVWCn%2Bqzo7NoYRg4DYQKs%0D%0AWwVHnG9j2kfJBSdwhBSQFG4bHYhEv16dv4juJUqU1Mpz3XQEpOUZHQoLWI7wxD0h%0D%0AUu6ZdHaBfzuIF%2BOgoYo3mfAmu3ip8U%2BonzXjcxHrPpml%2FLKWAyA80MOfAvDlCbRr%0D%0AWWfXmazC5fTvMOoPjm5DOb1LyJv%2BNt8IiUr9PQBeJjPYGw0j3%2FIdxmii8%2FaSP862%0D%0ASbs3D2x9cIXHHuy%2FR9rDGEVbmLnyuRgLnindvGe9H%2BWrJ47HrtiXTpTdFrXz5DQx%0D%0AaaGNJ84Ru2VnntuhpfdmagT02HjQGLvVHuTxnN06itlCX18WQWtRA8QphvnxBQFj%0D%0ArwTd7lqGOs994LtGLhAquv%2FVYQuwC79dK3NyJ92Mu2nlrbU64zuPAD7zqU96KyRv%0D%0AGtDKnBV04kFHgv7NHQFo8KAhYUyEtpWTf%2F3YDF8W5hYtBtzFmKW%2Bhca8bD18rCtj%0D%0AolJ8teB1frDFX9e9qtWCXptFX98huiC4%2FY48IFUjr8egiXb%2FRWhq92B3L3H6k59d%0D%0Ad91NbhCUfQnFPdvNI6kbUT27X96dYDrknZA7IWderdRtnFZWEB%2FtxfXar9TDy%2F1H%0D%0A80C1xABjqQQfT3AGggQmWeHOdA3S8r8JFidmFSdr4m38%2F%2BY2SeOwsaLyHCEKbN9K%0D%0AX2ow2u8NL6e5HLKvsPeeBkKQG%2FNXgLzrid%2BRtgfwEg8TA4LFKaUrNaxpMaSNGdMc%0D%0ANYyegmgKJoobUHLiGWKf5d77MlLM5zFVhaBsKKLBlNfltccK7aLRRH3qVIaLGBaL%0D%0ACfm84O5Sl2%2BaGCr1R8L5l0yZPETpjoElsBmqZJlbfjjCLegqqKErnPWwc3Wg5exk%0D%0ApVYvOgnYADUWvGHvt%2FzWtfeGNJbrvmdCB0mo4UUE72JpjjhPwJdNFfA%2ByzRNpV4M%0D%0AzI3tnsDRYXwBPk%2FmFQ7D7oa%2B6mQgif%2F%2B5brJX%2FTXQrgXSpLDWN7FcNqJai0FKFMU%0D%0AtPbebqHPjUJVuhtaqlO6%2F5Kj%2B9CjGOX8X1cG5rZUbpvHOs5ktVo7BLmRikDz9jHo%0D%0APACIJCFr7jmZBvobnr0dILncJ7wN%2B6xh%2BQErRPE5mlKqUqzMxlkgYzsn3e%2FIxDRs%0D%0ALTu2Uzn0NyjAKlTBFiEQ2L%2FMh2XAAxbb2t925bPENbJfs0o07h%2FrQ13XhjagL0Uw%0D%0AE1SbigPdCtXtIqxyx9zxiqELxsmOSMCza9RRCwum6qnKYORhM6C9O%2BqCgk2CRKsl%0D%0AXwjRLyFiWFa5x%2BNU2DlkaJzzTsj3CuuOx0GdiO9AlikBTn4Y%2FwfnMTwQRrGEXOdW%0D%0A87R%2B%2Bbq6QtSAkdprE9gMjJKJdQmMlHpFHGe%2BcfzAULO5tg0QlxeTFbBYunRhDchH%0D%0AZG7F7lW3RcNyBKusjmCZVzyyVWLVuxoY4HseDnUrTP10bKRHY1WOVrptdRZ4OLb1%0D%0APxg%2FQoXk%2BBnJ1IaPhfcOoByHZcjG3rXeMhWvP7npZOzz7%2Fy5w9Rjlj1zbfNSW0S6%0D%0AJ4QzJwAHGy%2BxdqhrlXlC4OhvBDsbwHtXiL0HiGCMFU7MUWcmYSfBZwOb3p7skCRQ%0D%0AXk2ONnk67vKY7FRQWzTpKaFbyOvAyETxMWzLjQJGA%2BFeruy05Gfj8DqLsSM2qfU%2F%0D%0A5GYTekH7M8zFqWmMDWbEql40DPxavDR%2FOfExfcJFuIB7XerHKwlJWKY8MHLC4jJh%0D%0AFztux8Cav8ojnHRZN75NN55ufZA0vYObIHIt9iTbaDdZIB84IsX9lTHyiepQUERa%0D%0AnaY7NSzTCCXNouwoXXvjIBW6zjqVXoqyUsnZQXScnWWsOoD1dNpURorqmzhB%2B8Td%0D%0AJ6OB9KJR5YEdu%2Bdb3Y%2FCct0na98xzGz1G7Ph7eIpx6tJxBhqjJnUzBiAmOL0fdLf&browserType=Chrome&txversion=5.0&osVersion=10&requestUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2F&currency=WON&subCompanyTel=&timestamp=1755013432055&ansim_quota=&address=&requestTimestamp=1755013432969&targetTop=true&postNum=&mobileType=false&offerPeriod=&cartResultString=&pgAuthIp=&INIregno=&no_moid2=&closeUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2Fdkpg%2Fv1%2Fpayment%2Finicis%2Fcard%2Fcancel_web%3Fsession_key%3D1755013427127-a0882600-0b66-4800-ac90-304500fa9bee" + \
-                                          "&cartString=&clientIp=" + clientIp + "&ip_event=&isAbleCheck=&billPrint_msg=&buyername=%EB%A9%9C%EB%A1%A0%ED%8B%B0%EC%BC%93&mKey=246f541a34eeb94f7554f0b38e8eed7c20b0ac639baf9f00d3e8fe5a5b2d38f3&rentalCompNo=&rentalCompNm=" + \
+                                          "&cartString=&clientIp=" + cust_ip + "&ip_event=&isAbleCheck=&billPrint_msg=&buyername=%EB%A9%9C%EB%A1%A0%ED%8B%B0%EC%BC%93&mKey=246f541a34eeb94f7554f0b38e8eed7c20b0ac639baf9f00d3e8fe5a5b2d38f3&rentalCompNo=&rentalCompNm=" + \
                                           "&ini_cardcodebanner_url=&cupDeposit=&dboption=&selMpi=&memberUniqueId=&browserVersion=&NAVR_SP_CHAIN_CODE=&additionalData=&rentalRecipientPhone=&addressDtl=&goodscnts=&rentalPeriod=&custemail=&tax=&requestByJs=true" + \
                                           "&privateCss=&rentalRecipientNm=&subCompanyBoss=&ini_SSGPAY_MDN=&ini_SSGPAY_PRODUCTCODE=10000000001&languageResult=&smid=&fds_result=&goodsname=2025+KAI+SOLO+CONCERT+TOUR+%E3%80%88KAION%E3%80%89+..." + \
                                           "&oid=8010000459733319&ini_CI=&subCompanyNum=&sid=&limitTime=30&nointerest=&goodsprice=&selectPayMethod=Card&subCompanyName=&ini_cardcode=&osType=Windows&messageVersion=" + \
@@ -577,21 +682,26 @@ def fetch_thread():
                                 data = parse_qs(dicResponseResult["unionResponse"])
                                 # 取值（parse_qs 返回的是 list）
                                 result = {k: v[0] for k, v in data.items()}
-
+                                pgId=result["pgid"]
+                                bcMerId = result["bcMerid"]
                                 # 对 URL 再解码
                                 unionpayUrl = unquote(result["unionpay_url"])
-                                excuteState = 13
+                                excuteState = 16
                             LogMessage(strResponseHtml)
-                elif excuteState == 13:
-                    requestResponse = client.get(unionpayUrl)
+                elif excuteState == 16:
+                    strRequestParameter=("customerIp=155.117.87.149&backUrl=https%3A%2F%2Fstdpay.inicis.com%2FpayAuthentication%2FunionBackReturn&orderId=20260308003922ticketon05205848"
+                                         "&signature=c0500d5e97d8659406e95cd112e26137&pgId="+pgId+"&channelType=07&frontUrl=https%3A%2F%2Fstdpay.inicis.com%2FpayAuthentication%2FunionBC50Return"
+                                         "&txnType=201&bcMerId="+bcMerId+"&version=200&txnTime=20260308003922&currencyCode=410&txnAmt=140000")
+                    requestResponse = client.post(unionpayUrl)
                     if (requestResponse.status_code == 200):
                         LogMessage("调用支付接口，返回成功！")
                         strResponseHtml = requestResponse.text
                         dicResponseResult = json.loads(strResponseHtml)
+                        excuteState = 17
                     else:
                         LogMessage("调用支付接口，返回：" + str(requestResponse.status_code))
-                    break
-                elif excuteState == 14:#输入卡号点击下一步
+
+                elif excuteState == 17:#输入卡号点击下一步
                     strRequestUrl = "https://cashierbj.95516.com/b2c/cardValidate.action?r=0.6451304326219437"
                     strRequestParameter = "cardNumber=1111111111111111111&transNumber=703923918586156711954"#卡号和网站的后缀https://cashiermd.95516.com/b2c/showCard.action?transNumber=745144591118533743724
                     requestResponse = client.post(strRequestUrl,strRequestParameter)
@@ -601,9 +711,9 @@ def fetch_thread():
                         dicResponseResult = json.loads(strResponseHtml)
                     else:
                         LogMessage("调用支付接口，返回：" + str(requestResponse.status_code))
-                    break
+
                 elif excuteState == 100:
-                    break
+                    continue
                 time.sleep(random.uniform(requestInterval, requestInterval + 20) / 1000)
             else:
                 time.sleep(1)
@@ -633,7 +743,7 @@ def LogMessage(message):
         if ui:
             ui.change_text_output(str(message))
             if global_resources.encryptedSeatIds != "":
-                ui.get_and_clear_seat_info(global_resources.seatId,global_resources.encryptedSeatIds)
+                ui.get_and_clear_seat_info("选到的座位位置为：" +global_resources.seatName + "；座位ID：" + global_resources.seatId,global_resources.encryptedSeatIds)
         else:
             print("UI 未初始化")
 

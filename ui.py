@@ -98,11 +98,11 @@ class UiWindow:
         frame_seat_info = tk.Frame(root, bg="#f5f5f5")
         frame_seat_info.pack(padx=10, pady=5, fill="both", expand=True)
 
-        tk.Label(frame_seat_info, text="SeatID:", bg="#f5f5f5").pack(anchor="w")
+        tk.Label(frame_seat_info, text="选座信息seatID:", bg="#f5f5f5").pack(anchor="w")
         self.text_seat_id = scrolledtext.ScrolledText(frame_seat_info, width=70, height=2, font=("Consolas", 10))
         self.text_seat_id.pack(fill="both", expand=True)
 
-        tk.Label(frame_seat_info, text="encryptedSeatIds:", bg="#f5f5f5").pack(anchor="w")
+        tk.Label(frame_seat_info, text="加密的选座信息encryptedSeatIds:", bg="#f5f5f5").pack(anchor="w")
         self.text_encrypted_seat_ids = scrolledtext.ScrolledText(frame_seat_info, width=70, height=2, font=("Consolas", 10))
         self.text_encrypted_seat_ids.pack(fill="both", expand=True)
 

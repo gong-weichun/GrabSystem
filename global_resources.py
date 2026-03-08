@@ -29,6 +29,7 @@ if 'PROXIES' in config.sections():
 #raw_proxies = config['config']['proxys']
 TimeDelay = float(config['settings']['timedelay'])
 UserName = config['settings']['username']
+telNum = config['settings']['telNum']
 MemberKey = config['settings']['memberkey']
 EventID = config['settings']['eventid']
 ScheduleNo = config['settings']['scheduleno']
@@ -40,4 +41,5 @@ user_accounts = []  # 用于存储账户名
 logger=Logger()
 
 seatId = ""
+seatName = ""
 encryptedSeatIds=""
