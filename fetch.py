@@ -339,7 +339,7 @@ def fetch_thread():
                                                         break
                                                 else:
                                                     for itemSs in itemSt["ss"]:  # sid表示座位号，sn、snm表示座位的索引，应该是数值越小越靠前
-                                                        if (itemSs["sid"] != None)&(itemSs["sid"] != seatId)&(itemSs["sid"] not in unavailableSeatID_list):  # sid为null表示座位被选走
+                                                        if (itemSs["sid"] != None) and (itemSs["sid"] != seatId) and (itemSs["sid"] not in unavailableSeatID_list):  # sid为null表示座位被选走
                                                             seatId = itemSs["sid"]
                                                             rowNo = itemSs["rn"]
                                                             seatNo = itemSs["sn"]
@@ -415,7 +415,7 @@ def fetch_thread():
                         else:
                             LogMessage("post请求失败")
 
-                elif excuteState == 7:#座位选择完成prodlimit
+                elif excuteState == 7:#座位选择完成prodlimit，在这时候应该就已经锁票了，会连续执行座位选择完成prodlimit、获取票型tickettype、ticketCancel，因为再返回这个座位已经不显示了
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13))+ "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/prodlimit.json?v=1&callback=" + callBack
@@ -510,7 +510,22 @@ def fetch_thread():
                         LogMessage(strResponseHtml)
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 11:  # 提交支付delivery,这里调用成功后到准备提交的界面
+                elif excuteState == 11:#ticketCancel
+                    callBack = "ticketCancel"
+                    strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/cancelfee.json?v=1&callback=" + callBack
+                    strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&perfDate=" + perfDate
+                    requestResponse = client.post(strRequestUrl, strRequestParameter)
+                    if (requestResponse.status_code == 200):
+                        strResponseHtml = requestResponse.text
+                        jsonResult = process_jsonp_response_robust(strResponseHtml, "/**/" + callBack)
+                        dicResponseResult = json.loads(jsonResult)
+                        if "code" in dicResponseResult:
+                            if dicResponseResult["code"] == "0000":
+                                excuteState = 12
+                        LogMessage(strResponseHtml)
+                    else:
+                        LogMessage("请求失败")
+                elif excuteState == 12:  # 提交支付delivery,这里调用成功后到准备提交的界面
                     callBack = "jQuery3600" + "".join(random.choices("0123456789", k=13)) + "_" + str(
                         int(round(time.time() * 1000)))
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/delivery.json?v=1&callback="+ callBack
@@ -552,12 +567,12 @@ def fetch_thread():
 
                                 seatInfoListWithPriceType = quote(json.dumps(tmpseat_list, ensure_ascii=False))
                                 commCode = "DV0002"
-                                excuteState = 12
+                                excuteState = 13
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 12:  # 点击checkout后先调用getNoRsrvSeqHandler
+                elif excuteState == 13:  # 点击checkout后先调用getNoRsrvSeqHandler
                     if SeatType==0:
-                        excuteState = 13
+                        excuteState = 14
                     else:
                         callBack = "getNoRsrvSeqHandler"
                         strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/getNoRsrvSeq.json?v=1&callback=" + callBack
@@ -576,11 +591,11 @@ def fetch_thread():
                                 resultCode = dicResponseResult["code"]
                                 if resultCode == "0000":
                                     noRsrvSeatSeqs = dicResponseResult["noRsrvSeatSeqs"][0]
-                            excuteState = 13
+                            excuteState = 14
                         else:
                             LogMessage("请求失败")
 
-                elif excuteState == 13:  # 点击checkout后调用saveHandler
+                elif excuteState == 14:  # 点击checkout后调用saveHandler
                     callBack = "saveHandler"
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/reservation/save.json?v=1&callback="+ callBack
                     if SeatType == 0:
@@ -625,14 +640,14 @@ def fetch_thread():
                             tel = str(dicResponseResult["tel"])
                             payMethodCode = dicResponseResult["payMethodCode"]
 
-                            excuteState = 14
+                            excuteState = 15
                         elif dicResponseResult["code"]=="T8271":#选择的座位已被移除。（选择座位后5分钟内未完成付款。）
                             unavailableSeatID_list.append(seatId)
                             excuteState = 6
 
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 14:#点击checkout后调用，好像没什么用
+                elif excuteState == 15:#点击checkout后调用，好像没什么用
                     strRequestUrl = "https://tkglobal.melon.com/reservation/ajax/payInitForm.htm?procMode=R"
                     strRequestParameter = "flplanTypeCode=" + flplanTypeCode + "&code=0000&seatInfoListWithPriceType="+seatInfoListWithPriceType + \
                                           "&cardCode="+cardCode+"&jtype="+jtype+"&eType=&cust_ip="+cust_ip+"&prodId=" + EventID + "&kakaoPayType=&userName="+userName+"&payAmt="+payAmt + \
@@ -641,10 +656,11 @@ def fetch_thread():
                                           "&tel=" + tel + "&rsrvSeq=" + rsrvSeq + "&payMethodCode="+payMethodCode+"&httpDomain=&card_pay_method=GLB"
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
-                        excuteState = 15
+                        excuteState = 16
                     else:
                         LogMessage("请求失败")
-                elif excuteState == 15:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
+                        #https://stdpay.inicis.com/payMain/checkAssentAll
+                elif excuteState == 16:  # 发起支付，准备输入卡号，这个会调用完成就会弹出窗口输入卡号
                     strRequestUrl = "https://stdpay.inicis.com/jsApi/union/requestVerify"
                     strRequestParameter = "cardCode=26&cardQuota=00&Ocbcard1=&Ocbcard2=&Ocbcard3=&Ocbcard4=&plan=lpointType2&chkLpointUse=on&lCardNo1=" + \
                                           "&lCardNo2=&lCardNo3=&lCardNo4=&lCardPw=&usePoint=&cardCodesNormal=21%2C22%2C23%2C24%2C25&cardCodesVisa3dDacom=12%2C14%2C41%2C32%2C53%2C48%2C04" + \
@@ -663,7 +679,8 @@ def fetch_thread():
                                           "&voucherGokrCnt=&acceptmethod=SKIN(ORIGINAL)%3Abelow1000%3Aini_onlycardcode(26)%3Apopreturn&ini_fullbanner_url=&merchantDeadLine=&taxfree=&ini_fullbanner_url3=&ini_fullbanner_url2=" + \
                                           "&rentalCompPhone=&subCompanyAddr=&site_id=&uway_logo_url=&goodsoid=&buyeremail=&aid=ticketon0520250813004352969_3BCF3BD47407&charset=UTF-8&ini_safetykey_reg=" + \
                                           "&useragent=Chrome_Win10+%5B+mozilla%2F5.0+(windows+nt+10.0%3B+win64%3B+x64)+applewebkit%2F537.36+(khtml%2C+like+gecko)+chrome%2F138.0.0.0+safari%2F537.36+%5D&mid=ticketon05&pgIp=" + \
-                                          "&fds_sno=031611&languageView=en&limitTimeAlertTime=10&basicInfo=UaTqX9k8kZm4TPKeQzM8ADlfNhNHE%2Bkg6J4FYnbLUgH1t212F8fHw%2F%2FIEFEbUg1W%0D%0ApW%2FdqBbGFbW7CFA7lEJ1d7Dg%2Bysrov8FUBR9vFxa%2BdB5mToWLLDvOr1ekqOAteDb%0D%0AK5RqP42PjuzJcqaG8YYyrispkFqUCynAPj3XFB1qnVwKhKIngzjLsvWotcSrYgvZ%0D%0A7GR7Wd4lqnl8LD9%2B47gyMDY5lDlUKNz05OC2JRJ%2BWObpEwvmRjQ7zRwtmd69qzlO%0D%0A%2FW0%2BovT%2F8IHjGL5miLDMQCQEWoNd%2BeJLp6cpQInRdTzV2PPjX4oqOInbQibfstyG%0D%0ASme80wV5VoYdUg5QqgXcPE%2FvRf%2F27sA0Pt1mfhn4oiZGgpKtRj6R3yUi%2BqDIECtr%0D%0AVBY9DnQFOuQNFfVmNZZXH6xQqIB1X%2BxIrYM7CpBIdUczgqD4Uel7i1gkHydQxiAo%0D%0Ahr3I%2BSw68pVrAQAL8kybjGE%2BkCKnMbhFbqnZ5yCnozfL5zv%2BGvK4crqjKgl3NSfK%0D%0ApYEF6xcI%2FqO%2B2leASIm2zvnyOpFdTw%2Frn6tuUXvZWa%2FvpGlGkjslf5X1GH4pGHjo%0D%0AyOBLsAsH%2BW%2FoB9E8GbC7R5AJw48iFC9ikI7zhr7oiyj33uFXeUO%2FQGrdxO9cwy33%0D%0ArnSPIaXtszDq0Y%2Bt2SAqnb3URTzCY%2BmnghJK%2FC9yfuMIKPzk2FEDLxqdvJuFW3AR%0D%0Aj1IPavBKBnYqUghkGgdaW5OiOwu1pdnqnT8y3qAU4%2FtXP1q%2F7%2Bu%2F%2FVUpnQndhmSi%0D%0AygdG99%2BiLZPT8uNn1V80XV%2BefWamQjM6Apdgr7ZThDfPGfPRKle7FPnIodU8i8UZ%0D%0A9UEQ%2B9BoRibgiAYbzOwwGERJhUFWUC%2FA1ASdmg2q2EsqWgzBknEaQdJXQCLJ1hPI%0D%0Af3srR2TNeQUtpi%2FjG7QhP1s2K6L4Xy0bMiE%2FjjvZK56%2FpNiVWeb1HAul1YEBgNOh%0D%0ATl0nZsA9yjcyAjiGeUC42CWgThzyT%2B5F9KmWo%2FOJHbSQt3Gze7L7Sf0ZmIrlZ%2FUi%0D%0AyNs8CavZIBZgix2KdRWelg3KeMUbnaF7L9Ste4VtMNyYj2irSoYMJVuHLI3nOgcA%0D%0Ai86NjQtO%2BUesInZz%2FW5yICWWi6va81UAaykV%2FaxUi627KOrRJ7M2IDq7RLy0UNEU%0D%0A%2BzGmZnZ4%2FArQtojonJJqDqxQbcuYMbZfisJnhB4Xu3ezWEsG5lfizgLjfvdh65EN%0D%0A8eTUOXHpHNb5jm2bQgS8rrXqcI8DL5YZeJKHd0TQ42HxHHOOxAqioRyKEdbmnHax%0D%0A%2Fhq8mz37oDPBBTZ4tMGzs7LRm2cTgjQhBauCAFhYsSr9VrvgsdUFMXgba6hR5KIM%0D%0ABvnrDznT4gA0cDeMIRITmUOd9CRN%2F76wiUSkYjlcD%2B2%2B4tAz5fITizEQpYIZhkBt%0D%0Aq047KDirYdfCpswGlU9I8HSkgeOUrjVOX3kIcZQNz38ki7lj%2Fg6yUeN0DfDOZt31%0D%0AqPSHgQch3U6WD10EWBf8TjIC0w2Yd%2BHc3G6FVh0uq6ZE5pBZI4tp1zHek28Tq557%0D%0AzSpDmVO6OwiilLMGTX9GhFVnmTHOZR%2BNmIs9Fa54RF0Tqn%2BVaCSfAfcTXOcIMhT8%0D%0AiiyMYGcDYa6d%2BNTT7xfeiaGwqLeI9anKHRvIQolwoaDlOP1Zqua%2FEpc7K9WvR9F2%0D%0AipEW8dUjAAzqk0vYcRzHR0YlmmlCu1notjQ9KGCct5GMFH8Ng1WkSaBM3gdoJ%2Bm3%0D%0AKRtnN0fL2L3Uf2IYaNp9RYoUO9u2smXcsZ7JjTlQNN%2BN9gAMuPNx9%2Bq%2Bv9bAyATt%0D%0AZLbGQyK%2BQeesUXxX9ifa0Se83LIIE0%2BNm8kZ3KvZzm3EjWIWxe4Vt%2BfFpij0Pqvq%0D%0AEHAGG6Ei%2B8%2FQGOcUe1uU7t8jbnOzjlzB2izqJy%2F9Rwc8uPxl3vtngEy%2BAWicUxon%0D%0AIPwvjjCN96LgnF4lhh1Im1oDtJLz%2F6Skc5mEsktqSr5bpFYQMk8P7kvQuImyGeLI%0D%0A369w0OX8ZgYrkMDie5Q23wvJ7dcXk5ocFHvUhCVbveNoqExOIkJDErqHJA64vMpY%0D%0AxbpqYb9MdnpfA9EcbsMU%2F59hMDCwwmd7NRkhhp%2FmGyWUTJcN%2BbYHSqOJZeHNeXn0%0D%0ApYMDS2amNACrcjGd8tnI%2FrKJptNkYrGhtjLTreXOjqtxRRMIAA0E6K1RY5WYgmjs%0D%0Aqotg2WvzySqU2zM6ozT6b6jYK2FRnGue2zIW3vVbpC%2B8FT7IIm4AC64dxfpSP%2FPx%0D%0AtLrAyAX4X9DrLOw2dj%2BXNYeHs8xSflQP7WrI7fGaj2Yf4d0OyFRy7vRWRJmHR2AO%0D%0AOpEGojwMvRlE0uSGuZBQUl247mHKP%2F7uBNbwJ43bsX6y%2BtQqNIeXXJmm54PT81%2B7%0D%0ACyUtkhb61sejhgHMLigI%2BmaozV7RyJP%2FCeqBCRiAt7TUSi55EWB5ZTMvFU6oQ5RX%0D%0AkFCfsKMJn71RrcjawTnQSJDrrAoZ7%2BwYwSt1araPbNVgrSGOhxcfITKZ9t9UZRFD%0D%0ApFUbWsT9XhOcPgBEtOJUF%2FRoFMn5Sx%2BZKzUWvPk4nfhXrRu5GaBRR1%2FNDZ8HA9u%2F%0D%0AyiEkrHvADo%2BFIXY5L8XPq35Dfiydk%2FL5klSAWdrJP3pGltJ2UYqARnIEhvOfsUcG%0D%0AqPFwfS8DtNYlojGlEhM7y4ksLzF9mjZdEeLzMtTm4NyACHf9UyKIgvQ%2BDF5rf8%2BY%0D%0AI1SrJSklVioyeHZRopZuWol4XmbIiaIJTHq2fmn20JN4Ohw0r%2B1hSAEeUanETC41%0D%0AEGQwiJkDTS9Mk9PZhD5VnpnNJbMhJFS3dSmf8IlknZgsx9HZwaTpJ%2BSeRKhHhOVV%0D%0A5xdSGzFBZGEGjBtynRYlIHc36vt0oVBPpjBqkGl%2FtryBRldTvrsfqIVLU2FlXCHY%0D%0A0wVbVuunKvmTZ7lXJgfU08P1HTJ4FyZPUAOscfV6cRxKVWCn%2Bqzo7NoYRg4DYQKs%0D%0AWwVHnG9j2kfJBSdwhBSQFG4bHYhEv16dv4juJUqU1Mpz3XQEpOUZHQoLWI7wxD0h%0D%0AUu6ZdHaBfzuIF%2BOgoYo3mfAmu3ip8U%2BonzXjcxHrPpml%2FLKWAyA80MOfAvDlCbRr%0D%0AWWfXmazC5fTvMOoPjm5DOb1LyJv%2BNt8IiUr9PQBeJjPYGw0j3%2FIdxmii8%2FaSP862%0D%0ASbs3D2x9cIXHHuy%2FR9rDGEVbmLnyuRgLnindvGe9H%2BWrJ47HrtiXTpTdFrXz5DQx%0D%0AaaGNJ84Ru2VnntuhpfdmagT02HjQGLvVHuTxnN06itlCX18WQWtRA8QphvnxBQFj%0D%0ArwTd7lqGOs994LtGLhAquv%2FVYQuwC79dK3NyJ92Mu2nlrbU64zuPAD7zqU96KyRv%0D%0AGtDKnBV04kFHgv7NHQFo8KAhYUyEtpWTf%2F3YDF8W5hYtBtzFmKW%2Bhca8bD18rCtj%0D%0AolJ8teB1frDFX9e9qtWCXptFX98huiC4%2FY48IFUjr8egiXb%2FRWhq92B3L3H6k59d%0D%0Ad91NbhCUfQnFPdvNI6kbUT27X96dYDrknZA7IWderdRtnFZWEB%2FtxfXar9TDy%2F1H%0D%0A80C1xABjqQQfT3AGggQmWeHOdA3S8r8JFidmFSdr4m38%2F%2BY2SeOwsaLyHCEKbN9K%0D%0AX2ow2u8NL6e5HLKvsPeeBkKQG%2FNXgLzrid%2BRtgfwEg8TA4LFKaUrNaxpMaSNGdMc%0D%0ANYyegmgKJoobUHLiGWKf5d77MlLM5zFVhaBsKKLBlNfltccK7aLRRH3qVIaLGBaL%0D%0ACfm84O5Sl2%2BaGCr1R8L5l0yZPETpjoElsBmqZJlbfjjCLegqqKErnPWwc3Wg5exk%0D%0ApVYvOgnYADUWvGHvt%2FzWtfeGNJbrvmdCB0mo4UUE72JpjjhPwJdNFfA%2ByzRNpV4M%0D%0AzI3tnsDRYXwBPk%2FmFQ7D7oa%2B6mQgif%2F%2B5brJX%2FTXQrgXSpLDWN7FcNqJai0FKFMU%0D%0AtPbebqHPjUJVuhtaqlO6%2F5Kj%2B9CjGOX8X1cG5rZUbpvHOs5ktVo7BLmRikDz9jHo%0D%0APACIJCFr7jmZBvobnr0dILncJ7wN%2B6xh%2BQErRPE5mlKqUqzMxlkgYzsn3e%2FIxDRs%0D%0ALTu2Uzn0NyjAKlTBFiEQ2L%2FMh2XAAxbb2t925bPENbJfs0o07h%2FrQ13XhjagL0Uw%0D%0AE1SbigPdCtXtIqxyx9zxiqELxsmOSMCza9RRCwum6qnKYORhM6C9O%2BqCgk2CRKsl%0D%0AXwjRLyFiWFa5x%2BNU2DlkaJzzTsj3CuuOx0GdiO9AlikBTn4Y%2FwfnMTwQRrGEXOdW%0D%0A87R%2B%2Bbq6QtSAkdprE9gMjJKJdQmMlHpFHGe%2BcfzAULO5tg0QlxeTFbBYunRhDchH%0D%0AZG7F7lW3RcNyBKusjmCZVzyyVWLVuxoY4HseDnUrTP10bKRHY1WOVrptdRZ4OLb1%0D%0APxg%2FQoXk%2BBnJ1IaPhfcOoByHZcjG3rXeMhWvP7npZOzz7%2Fy5w9Rjlj1zbfNSW0S6%0D%0AJ4QzJwAHGy%2BxdqhrlXlC4OhvBDsbwHtXiL0HiGCMFU7MUWcmYSfBZwOb3p7skCRQ%0D%0AXk2ONnk67vKY7FRQWzTpKaFbyOvAyETxMWzLjQJGA%2BFeruy05Gfj8DqLsSM2qfU%2F%0D%0A5GYTekH7M8zFqWmMDWbEql40DPxavDR%2FOfExfcJFuIB7XerHKwlJWKY8MHLC4jJh%0D%0AFztux8Cav8ojnHRZN75NN55ufZA0vYObIHIt9iTbaDdZIB84IsX9lTHyiepQUERa%0D%0AnaY7NSzTCCXNouwoXXvjIBW6zjqVXoqyUsnZQXScnWWsOoD1dNpURorqmzhB%2B8Td%0D%0AJ6OB9KJR5YEdu%2Bdb3Y%2FCct0na98xzGz1G7Ph7eIpx6tJxBhqjJnUzBiAmOL0fdLf&browserType=Chrome&txversion=5.0&osVersion=10&requestUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2F&currency=WON&subCompanyTel=&timestamp=1755013432055&ansim_quota=&address=&requestTimestamp=1755013432969&targetTop=true&postNum=&mobileType=false&offerPeriod=&cartResultString=&pgAuthIp=&INIregno=&no_moid2=&closeUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2Fdkpg%2Fv1%2Fpayment%2Finicis%2Fcard%2Fcancel_web%3Fsession_key%3D1755013427127-a0882600-0b66-4800-ac90-304500fa9bee" + \
+                                          ("&fds_sno=031611&languageView=en&limitTimeAlertTime=10&basicInfo=UaTqX9k8kZm4TPKeQzM8ADlfNhNHE%2Bkg6J4FYnbLUgH1t212F8fHw%2F%2FIEFEbUg1W%0D%0ApW%2FdqBbGFbW7CFA7lEJ1d7Dg%2Bysrov8FUBR9vFxa%2BdB5mToWLLDvOr1ekqOAteDb%0D%0AK5RqP42PjuzJcqaG8YYyrispkFqUCynAPj3XFB1qnVwKhKIngzjLsvWotcSrYgvZ%0D%0A7GR7Wd4lqnl8LD9%2B47gyMDY5lDlUKNz05OC2JRJ%2BWObpEwvmRjQ7zRwtmd69qzlO%0D%0A%2FW0%2BovT%2F8IHjGL5miLDMQCQEWoNd%2BeJLp6cpQInRdTzV2PPjX4oqOInbQibfstyG%0D%0ASme80wV5VoYdUg5QqgXcPE%2FvRf%2F27sA0Pt1mfhn4oiZGgpKtRj6R3yUi%2BqDIECtr%0D%0AVBY9DnQFOuQNFfVmNZZXH6xQqIB1X%2BxIrYM7CpBIdUczgqD4Uel7i1gkHydQxiAo%0D%0Ahr3I%2BSw68pVrAQAL8kybjGE%2BkCKnMbhFbqnZ5yCnozfL5zv%2BGvK4crqjKgl3NSfK%0D%0ApYEF6xcI%2FqO%2B2leASIm2zvnyOpFdTw%2Frn6tuUXvZWa%2FvpGlGkjslf5X1GH4pGHjo%0D%0AyOBLsAsH%2BW%2FoB9E8GbC7R5AJw48iFC9ikI7zhr7oiyj33uFXeUO%2FQGrdxO9cwy33%0D%0ArnSPIaXtszDq0Y%2Bt2SAqnb3URTzCY%2BmnghJK%2FC9yfuMIKPzk2FEDLxqdvJuFW3AR%0D%0Aj1IPavBKBnYqUghkGgdaW5OiOwu1pdnqnT8y3qAU4%2FtXP1q%2F7%2Bu%2F%2FVUpnQndhmSi%0D%0AygdG99%2BiLZPT8uNn1V80XV%2BefWamQjM6Apdgr7ZThDfPGfPRKle7FPnIodU8i8UZ%0D%0A9UEQ%2B9BoRibgiAYbzOwwGERJhUFWUC%2FA1ASdmg2q2EsqWgzBknEaQdJXQCLJ1hPI%0D%0Af3srR2TNeQUtpi%2FjG7QhP1s2K6L4Xy0bMiE%2FjjvZK56%2FpNiVWeb1HAul1YEBgNOh%0D%0ATl0nZsA9yjcyAjiGeUC42CWgThzyT%2B5F9KmWo%2FOJHbSQt3Gze7L7Sf0ZmIrlZ%2FUi%0D%0AyNs8CavZIBZgix2KdRWelg3KeMUbnaF7L9Ste4VtMNyYj2irSoYMJVuHLI3nOgcA%0D%0Ai86NjQtO%2BUesInZz%2FW5yICWWi6va81UAaykV%2FaxUi627KOrRJ7M2IDq7RLy0UNEU%0D%0A%2BzGmZnZ4%2FArQtojonJJqDqxQbcuYMbZfisJnhB4Xu3ezWEsG5lfizgLjfvdh65EN%0D%0A8eTUOXHpHNb5jm2bQgS8rrXqcI8DL5YZeJKHd0TQ42HxHHOOxAqioRyKEdbmnHax%0D%0A%2Fhq8mz37oDPBBTZ4tMGzs7LRm2cTgjQhBauCAFhYsSr9VrvgsdUFMXgba6hR5KIM%0D%0ABvnrDznT4gA0cDeMIRITmUOd9CRN%2F76wiUSkYjlcD%2B2%2B4tAz5fITizEQpYIZhkBt%0D%0Aq047KDirYdfCpswGlU9I8HSkgeOUrjVOX3kIcZQNz38ki7lj%2Fg6yUeN0DfDOZt31%0D%0AqPSHgQch3U6WD10EWBf8TjIC0w2Yd%2BHc3G6FVh0uq6ZE5pBZI4tp1zHek28Tq557%0D%0AzSpDmVO6OwiilLMGTX9GhFVnmTHOZR%2BNmIs9Fa54RF0Tqn%2BVaCSfAfcTXOcIMhT8%0D%0AiiyMYGcDYa6d%2BNTT7xfeiaGwqLeI9anKHRvIQolwoaDlOP1Zqua%2FEpc7K9WvR9F2%0D%0AipEW8dUjAAzqk0vYcRzHR0YlmmlCu1notjQ9KGCct5GMFH8Ng1WkSaBM3gdoJ%2Bm3%0D%0AKRtnN0fL2L3Uf2IYaNp9RYoUO9u2smXcsZ7JjTlQNN%2BN9gAMuPNx9%2Bq%2Bv9bAyATt%0D%0AZLbGQyK%2BQeesUXxX9ifa0Se83LIIE0%2BNm8kZ3KvZzm3EjWIWxe4Vt%2BfFpij0Pqvq%0D%0AEHAGG6Ei%2B8%2FQGOcUe1uU7t8jbnOzjlzB2izqJy%2F9Rwc8uPxl3vtngEy%2BAWicUxon%0D%0AIPwvjjCN96LgnF4lhh1Im1oDtJLz%2F6Skc5mEsktqSr5bpFYQMk8P7kvQuImyGeLI%0D%0A369w0OX8ZgYrkMDie5Q23wvJ7dcXk5ocFHvUhCVbveNoqExOIkJDErqHJA64vMpY%0D%0AxbpqYb9MdnpfA9EcbsMU%2F59hMDCwwmd7NRkhhp%2FmGyWUTJcN%2BbYHSqOJZeHNeXn0%0D%0ApYMDS2amNACrcjGd8tnI%2FrKJptNkYrGhtjLTreXOjqtxRRMIAA0E6K1RY5WYgmjs%0D%0Aqotg2WvzySqU2zM6ozT6b6jYK2FRnGue2zIW3vVbpC%2B8FT7IIm4AC64dxfpSP%2FPx%0D%0AtLrAyAX4X9DrLOw2dj%2BXNYeHs8xSflQP7WrI7fGaj2Yf4d0OyFRy7vRWRJmHR2AO%0D%0AOpEGojwMvRlE0uSGuZBQUl247mHKP%2F7uBNbwJ43bsX6y%2BtQqNIeXXJmm54PT81%2B7%0D%0ACyUtkhb61sejhgHMLigI%2BmaozV7RyJP%2FCeqBCRiAt7TUSi55EWB5ZTMvFU6oQ5RX%0D%0AkFCfsKMJn71RrcjawTnQSJDrrAoZ7%2BwYwSt1araPbNVgrSGOhxcfITKZ9t9UZRFD%0D%0ApFUbWsT9XhOcPgBEtOJUF%2FRoFMn5Sx%2BZKzUWvPk4nfhXrRu5GaBRR1%2FNDZ8HA9u%2F%0D%0AyiEkrHvADo%2BFIXY5L8XPq35Dfiydk%2FL5klSAWdrJP3pGltJ2UYqARnIEhvOfsUcG%0D%0AqPFwfS8DtNYlojGlEhM7y4ksLzF9mjZdEeLzMtTm4NyACHf9UyKIgvQ%2BDF5rf8%2BY%0D%0AI1SrJSklVioyeHZRopZuWol4XmbIiaIJTHq2fmn20JN4Ohw0r%2B1hSAEeUanETC41%0D%0AEGQwiJkDTS9Mk9PZhD5VnpnNJbMhJFS3dSmf8IlknZgsx9HZwaTpJ%2BSeRKhHhOVV%0D%0A5xdSGzFBZGEGjBtynRYlIHc36vt0oVBPpjBqkGl%2FtryBRldTvrsfqIVLU2FlXCHY%0D%0A0wVbVuunKvmTZ7lXJgfU08P1HTJ4FyZPUAOscfV6cRxKVWCn%2Bqzo7NoYRg4DYQKs%0D%0AWwVHnG9j2kfJBSdwhBSQFG4bHYhEv16dv4juJUqU1Mpz3XQEpOUZHQoLWI7wxD0h%0D%0AUu6ZdHaBfzuIF%2BOgoYo3mfAmu3ip8U%2BonzXjcxHrPpml%2FLKWAyA80MOfAvDlCbRr%0D%0AWWfXmazC5fTvMOoPjm5DOb1LyJv%2BNt8IiUr9PQBeJjPYGw0j3%2FIdxmii8%2FaSP862%0D%0ASbs3D2x9cIXHHuy%2FR9rDGEVbmLnyuRgLnindvGe9H%2BWrJ47HrtiXTpTdFrXz5DQx%0D%0AaaGNJ84Ru2VnntuhpfdmagT02HjQGLvVHuTxnN06itlCX18WQWtRA8QphvnxBQFj%0D%0ArwTd7lqGOs994LtGLhAquv%2FVYQuwC79dK3NyJ92Mu2nlrbU64zuPAD7zqU96KyRv%0D%0AGtDKnBV04kFHgv7NHQFo8KAhYUyEtpWTf%2F3YDF8W5hYtBtzFmKW%2Bhca8bD18rCtj%0D%0AolJ8teB1frDFX9e9qtWCXptFX98huiC4%2FY48IFUjr8egiXb%2FRWhq92B3L3H6k59d%0D%0Ad91NbhCUfQnFPdvNI6kbUT27X96dYDrknZA7IWderdRtnFZWEB%2FtxfXar9TDy%2F1H%0D%0A80C1xABjqQQfT3AGggQmWeHOdA3S8r8JFidmFSdr4m38%2F%2BY2SeOwsaLyHCEKbN9K%0D%0AX2ow2u8NL6e5HLKvsPeeBkKQG%2FNXgLzrid%2BRtgfwEg8TA4LFKaUrNaxpMaSNGdMc%0D%0ANYyegmgKJoobUHLiGWKf5d77MlLM5zFVhaBsKKLBlNfltccK7aLRRH3qVIaLGBaL%0D%0ACfm84O5Sl2%2BaGCr1R8L5l0yZPETpjoElsBmqZJlbfjjCLegqqKErnPWwc3Wg5exk%0D%0ApVYvOgnYADUWvGHvt%2FzWtfeGNJbrvmdCB0mo4UUE72JpjjhPwJdNFfA%2ByzRNpV4M%0D%0AzI3tnsDRYXwBPk%2FmFQ7D7oa%2B6mQgif%2F%2B5brJX%2FTXQrgXSpLDWN7FcNqJai0FKFMU%0D%0AtPbebqHPjUJVuhtaqlO6%2F5Kj%2B9CjGOX8X1cG5rZUbpvHOs5ktVo7BLmRikDz9jHo%0D%0APACIJCFr7jmZBvobnr0dILncJ7wN%2B6xh%2BQErRPE5mlKqUqzMxlkgYzsn3e%2FIxDRs%0D%0ALTu2Uzn0NyjAKlTBFiEQ2L%2FMh2XAAxbb2t925bPENbJfs0o07h%2FrQ13XhjagL0Uw%0D%0AE1SbigPdCtXtIqxyx9zxiqELxsmOSMCza9RRCwum6qnKYORhM6C9O%2BqCgk2CRKsl%0D%0AXwjRLyFiWFa5x%2BNU2DlkaJzzTsj3CuuOx0GdiO9AlikBTn4Y%2FwfnMTwQRrGEXOdW%0D%0A87R%2B%2Bbq6QtSAkdprE9gMjJKJdQmMlHpFHGe%2BcfzAULO5tg0QlxeTFbBYunRhDchH%0D%0AZG7F7lW3RcNyBKusjmCZVzyyVWLVuxoY4HseDnUrTP10bKRHY1WOVrptdRZ4OLb1%0D%0APxg%2FQoXk%2BBnJ1IaPhfcOoByHZcjG3rXeMhWvP7npZOzz7%2Fy5w9Rjlj1zbfNSW0S6%0D%0AJ4QzJwAHGy%2BxdqhrlXlC4OhvBDsbwHtXiL0HiGCMFU7MUWcmYSfBZwOb3p7skCRQ%0D%0AXk2ONnk67vKY7FRQWzTpKaFbyOvAyETxMWzLjQJGA%2BFeruy05Gfj8DqLsSM2qfU%2F%0D%0A5GYTekH7M8zFqWmMDWbEql40DPxavDR%2FOfExfcJFuIB7XerHKwlJWKY8MHLC4jJh%0D%0AFztux8Cav8ojnHRZN75NN55ufZA0vYObIHIt9iTbaDdZIB84IsX9lTHyiepQUERa%0D%0AnaY7NSzTCCXNouwoXXvjIBW6zjqVXoqyUsnZQXScnWWsOoD1dNpURorqmzhB%2B8Td%0D%0AJ6OB9KJR5YEdu%2Bdb3Y%2FCct0na98xzGz1G7Ph7eIpx6tJxBhqjJnUzBiAmOL0fdLf"
+                                           "&browserType=Chrome&txversion=5.0&osVersion=10&requestUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2F&currency=WON&subCompanyTel=&timestamp=1755013432055&ansim_quota=&address=&requestTimestamp=1755013432969&targetTop=true&postNum=&mobileType=false&offerPeriod=&cartResultString=&pgAuthIp=&INIregno=&no_moid2=&closeUrl=https%3A%2F%2Fdkpg-web.payments.kakao.com%2Fdkpg%2Fv1%2Fpayment%2Finicis%2Fcard%2Fcancel_web%3Fsession_key%3D1755013427127-a0882600-0b66-4800-ac90-304500fa9bee") + \
                                           "&cartString=&clientIp=" + cust_ip + "&ip_event=&isAbleCheck=&billPrint_msg=&buyername=%EB%A9%9C%EB%A1%A0%ED%8B%B0%EC%BC%93&mKey=246f541a34eeb94f7554f0b38e8eed7c20b0ac639baf9f00d3e8fe5a5b2d38f3&rentalCompNo=&rentalCompNm=" + \
                                           "&ini_cardcodebanner_url=&cupDeposit=&dboption=&selMpi=&memberUniqueId=&browserVersion=&NAVR_SP_CHAIN_CODE=&additionalData=&rentalRecipientPhone=&addressDtl=&goodscnts=&rentalPeriod=&custemail=&tax=&requestByJs=true" + \
                                           "&privateCss=&rentalRecipientNm=&subCompanyBoss=&ini_SSGPAY_MDN=&ini_SSGPAY_PRODUCTCODE=10000000001&languageResult=&smid=&fds_result=&goodsname=2025+KAI+SOLO+CONCERT+TOUR+%E3%80%88KAION%E3%80%89+..." + \
