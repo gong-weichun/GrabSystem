@@ -10,43 +10,75 @@ import global_resources
 COOKIES_JSON = "cookies_for_playwright.json"
 
 proxies = global_resources.proxies
-cookies=global_resources.cookies
+cookies = global_resources.cookies
 headers = global_resources.headers
-class TLSHttpClient:
-    def __init__(self):#cookies=None, headers=None, proxies=None
 
-        # 1. 创建客户端，模拟 Chrome 浏览器
-        self.session  = tls_client.Session(
+
+class TLSHttpClient:
+
+    def __init__(self):
+
+        self.session = tls_client.Session(
             client_identifier="chrome_117",
             random_tls_extension_order=True,
-        )  # 也可以选择 firefox_115, edge_116 等
-        # 设置全局 Headers
+            force_http1=True
+        )
+
+        # 记录上一次URL
+        self.last_url = None
+
         if headers:
             self.session.headers.update(headers)
 
-        # 初始化 Cookies
         if cookies:
             for k, v in cookies.items():
                 self.session.cookies.set(k, v)
-        # 代理池
+
         self.proxies = proxies or []
 
+    def update_referer(self):
+        """自动更新Referer"""
+        if self.last_url:
+            self.session.headers["Referer"] = self.last_url
+
     def get(self, url):
-        # 发起 GET 请求
+
         while True:
             proxy = self.get_proxy()
-            response = self.session.get(url)#,proxy=proxy
+
+            if global_resources.referUrl != "":
+                # 更新Referer
+                self.session.headers["Referer"]=global_resources.referUrl
+                #self.update_referer()
+
+            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com"))
+            response = self.session.get(url)  # ,proxy=proxy
+
+            # 更新last_url
+            #self.last_url = url
+
             if response.status_code == 200:
                 return response
             elif not self.proxies:
                 return response
             else:
                 self.proxies.pop(0)
+
     def post(self, url, data=None, json=None):
-        # 发起 POST 请求
+
         while True:
             proxy = self.get_proxy()
-            response = self.session.post(url,data=data)#,json=json,proxy=proxy
+
+            if global_resources.referUrl != "":
+                # 更新Referer
+                self.session.headers["Referer"] = global_resources.referUrl
+
+            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com"))
+            response = self.session.post(url, data=data)  # ,json=json,proxy=proxy
+
+            # 更新last_url
+            #self.last_url = url
+
             if response.status_code == 200:
                 return response
             elif not self.proxies:

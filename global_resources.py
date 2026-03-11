@@ -23,7 +23,7 @@ if 'PROXIES' in config.sections():
     proxy_keys = sorted(config['PROXIES'].keys(), key=lambda k: int(k.replace('proxy', '')))
     proxies = [config['PROXIES'][key] for key in proxy_keys]
     
-
+referUrl=""
 #raw_cookie = config['config']['cookie']
 #raw_header = config['config']['header']
 #raw_proxies = config['config']['proxys']
