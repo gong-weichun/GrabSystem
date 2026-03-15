@@ -24,22 +24,19 @@ class TLSHttpClient:
             force_http1=True
         )
 
-        # 记录上一次URL
-        self.last_url = None
 
         if headers:
             self.session.headers.update(headers)
 
         if cookies:
             for k, v in cookies.items():
-                self.session.cookies.set(k, v)
+                domain = "tkglobal.melon.com"
+                if k in ["PCID", "keyCookie_T", "MAC_T", "NetFunnel_ID", "TKT_POC_ID"]:
+                    domain = ".melon.com"
+                self.session.cookies.set(k, v,domain=domain,path="/",secure=True)
 
         self.proxies = proxies or []
 
-    def update_referer(self):
-        """自动更新Referer"""
-        if self.last_url:
-            self.session.headers["Referer"] = self.last_url
 
     def get(self, url):
 
@@ -49,9 +46,8 @@ class TLSHttpClient:
             if global_resources.referUrl != "":
                 # 更新Referer
                 self.session.headers["Referer"]=global_resources.referUrl
-                #self.update_referer()
 
-            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com"))
+            #print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
             response = self.session.get(url)  # ,proxy=proxy
 
             # 更新last_url
@@ -73,11 +69,8 @@ class TLSHttpClient:
                 # 更新Referer
                 self.session.headers["Referer"] = global_resources.referUrl
 
-            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com"))
+            #print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
             response = self.session.post(url, data=data)  # ,json=json,proxy=proxy
-
-            # 更新last_url
-            #self.last_url = url
 
             if response.status_code == 200:
                 return response

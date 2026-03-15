@@ -21,8 +21,26 @@ import sys
 #client = TLSHttpClient()
 #client.playwright_login_and_get_cookies("https://tkglobal.melon.com/main/index.htm?langCd=EN")
 
+def get_cookie():
+    strRequestUrl = "https://gmember.melon.com/login/login_form.htm?langCd=EN&redirectUrl=https://tkglobal.melon.com/main/index.htm?langCd=EN"
+    requestResponse = client.get(strRequestUrl)#更新JSESSIONID
+    if requestResponse.status_code == 200:
+        strResponseHtml = requestResponse.text
+
+    strRequestUrl = "https://gmember.melon.com/login/login_proc.htm"
+    strRequestParameter = "rtnUrl=https://tkglobal.melon.com/main/index.htm&langCd=EN&email=&pwd="
+    requestResponse = client.post(strRequestUrl, strRequestParameter)#更新keyCookie_T、MAC_T
+    if requestResponse.status_code == 200:
+        strResponseHtml = requestResponse.text
+
+
+
+client = TLSHttpClient()
+
+
 u=UiWindow()
 u.start_ui_task()
+#get_cookie()
 t = threading.Thread(target=fetch.fetch_thread)
 t.daemon = True
 t.start()
@@ -32,3 +50,4 @@ def start_fetch_thread():
     t = threading.Thread(target=fetch.fetch_thread)
     t.daemon = True
     t.start()
+

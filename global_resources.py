@@ -22,6 +22,7 @@ if 'PROXIES' in config.sections():
     # 提取proxy开头的键并按数字排序
     proxy_keys = sorted(config['PROXIES'].keys(), key=lambda k: int(k.replace('proxy', '')))
     proxies = [config['PROXIES'][key] for key in proxy_keys]
+    proxies.clear()
     
 referUrl=""
 #raw_cookie = config['config']['cookie']
