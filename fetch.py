@@ -458,9 +458,12 @@ def fetch_thread():
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
-                        strRequestUrl = "https://tkglobal.melon.com/resource/script/web/common/CaptchaUtils.js?v=20240116"
-                        strRequestParameter = ""
-                        requestResponse = client.get(strRequestUrl+strRequestParameter)
+                        client.session.cookies.set(
+                            "wcs_bt",
+                            f"s_322bdbd6fd48:{int(time.time())}",
+                            domain="tkglobal.melon.com",
+                            path="/"
+                        )
 
                         excuteState = 9
                         LogMessage(strResponseHtml)
@@ -537,6 +540,12 @@ def fetch_thread():
                     requestResponse = client.get(strRequestUrl+strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
+                        client.session.cookies.set(
+                            "wcs_bt",
+                            f"s_322bdbd6fd48:{int(time.time())}",
+                            domain="tkglobal.melon.com",
+                            path="/"
+                        )
                         excuteState = 13
                         LogMessage(strResponseHtml)
                     else:
