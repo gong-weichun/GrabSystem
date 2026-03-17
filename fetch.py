@@ -2,11 +2,13 @@ import json
 import random
 import time
 import re
+
+from global_resources import EventID
 from http_helper import TLSHttpClient
 import global_resources
 from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
-from urllib.parse import quote_plus,parse_qs,unquote
+from urllib.parse import quote_plus,parse_qs,unquote,quote
 
 def fetch_thread():
     SeatType = 0
@@ -93,6 +95,7 @@ def fetch_thread():
             global_resources.seatId = seatId
             global_resources.seatName = seatName
             global_resources.encryptedSeatIds = encryptedSeatIds
+
             if SeatType==0:
                 mapClickYn = "Y"
             else:
@@ -204,29 +207,37 @@ def fetch_thread():
                             time.sleep(1)
 
                 elif excuteState == 3:  # 获得产品信息
-                    strRequestUrl = "https://tkglobal.melon.com/tktapi/product/informProdSch.json?v=1"
-                    strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfDate="
+                    strRequestUrl = "https://tkglobal.melon.com/reservation/popup/onestop.htm"
+                    strRequestParameter = "prodId="+EventID+"&pocCode="+pocCode+"&scheduleNo="+scheduleNo+"&sellCondNo=&sellTypeCode="+sellTypeCode+("&t=&tYn="+trafficCtrlYn+
+                                           "&chk="+quote(prodKey)+"&langCd=EN&netfunnel_key=")
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if requestResponse.status_code == 200:
-                        strResponseHtml = requestResponse.text
+                        strRequestUrl = "https://tkglobal.melon.com/member/getMemberKey.json"
+                        requestResponse = client.post(strRequestUrl)
+                        if requestResponse.status_code == 200:
+                            strRequestUrl = "https://tkglobal.melon.com/tktapi/product/informProdSch.json?v=1"
+                            strRequestParameter = "prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode + "&sellCondNo=&perfDate="
+                            requestResponse = client.post(strRequestUrl, strRequestParameter)
+                            if requestResponse.status_code == 200:
+                                strResponseHtml = requestResponse.text
 
-                        if "prodInform" in strResponseHtml:
-                            dicResponseResult = json.loads(strResponseHtml)
-                            perfMainName = dicResponseResult["prodInform"]["perfMainName"]
-                            prodTypeCode = dicResponseResult["prodInform"]["prodTypeCode"]
-                            trafficCtrlYn = dicResponseResult["prodInform"]["trafficCtrlYn"]
-                            perfTypeCode = dicResponseResult["prodInform"]["perfTypeCode"]
-                            perfStartDay = dicResponseResult["prodInform"]["perfStartDay"]
-                            perfDay = perfStartDay
-                            perfDate = perfStartDay
-                            flplanTypeCode = str(dicResponseResult["prodInform"]["flplanTypeCode"])
-                            scheduleTypeCode = dicResponseResult["prodInform"]["scheduleTypeCode"]
-                            limitVolume = dicResponseResult["prodInform"]["limitVolume"]
-                            LogMessage(strResponseHtml)
-                            excuteState = 4
-                    else:
-                        LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
-                        time.sleep(1)
+                                if "prodInform" in strResponseHtml:
+                                    dicResponseResult = json.loads(strResponseHtml)
+                                    perfMainName = dicResponseResult["prodInform"]["perfMainName"]
+                                    prodTypeCode = dicResponseResult["prodInform"]["prodTypeCode"]
+                                    trafficCtrlYn = dicResponseResult["prodInform"]["trafficCtrlYn"]
+                                    perfTypeCode = dicResponseResult["prodInform"]["perfTypeCode"]
+                                    perfStartDay = dicResponseResult["prodInform"]["perfStartDay"]
+                                    perfDay = perfStartDay
+                                    perfDate = perfStartDay
+                                    flplanTypeCode = str(dicResponseResult["prodInform"]["flplanTypeCode"])
+                                    scheduleTypeCode = dicResponseResult["prodInform"]["scheduleTypeCode"]
+                                    limitVolume = dicResponseResult["prodInform"]["limitVolume"]
+                                    LogMessage(strResponseHtml)
+                                    excuteState = 4
+                            else:
+                                LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
+                                time.sleep(1)
                 elif excuteState == 4:  # 获得限制信息，如最多买多少票
                     strRequestUrl = "https://tkglobal.melon.com/tktapi/glb/product/informLimit.json"
                     strRequestParameter = "v=1&prodId=" + EventID + "&pocCode=" + pocCode + "&scheduleNo=" + scheduleNo + "&sellTypeCode=" + sellTypeCode
@@ -238,7 +249,11 @@ def fetch_thread():
                         dicResponseResult = json.loads(strResponseHtml)
                         if "code" in dicResponseResult:
                             if (dicResponseResult["code"] == "0000"):
-                                excuteState = 5
+                                strRequestUrl = "https://tkglobal.melon.com/reservation/popup/stepBlock.htm?langCd=EN"
+                                requestResponse = client.get(strRequestUrl)
+                                LogMessage("请求返回状态：" + str(requestResponse.status_code))
+                                if requestResponse.status_code == 200:
+                                    excuteState = 5
                     else:
                         LogMessage("请求失败，返回状态：" + str(requestResponse.status_code) + "，再次尝试")
                         time.sleep(1)
@@ -454,7 +469,7 @@ def fetch_thread():
                 elif excuteState == 8:#stepTicket
                     strRequestUrl = "https://tkglobal.melon.com/reservation/popup/stepTicket.htm"
                     strRequestParameter = ("prodId=" + EventID + "&scheduleNo="+scheduleNo+"&flplanTypeCode="+flplanTypeCode+"&seatTypeCode="+seatTypeCode+"&"
-                                           "encryptedSeatIds="+encryptedSeatIds+"&interlockTypeCode="+interlockTypeCode+"&interlockTid="+interlockTid+"&seatIds="+seatId)
+                                           "encryptedSeatIds="+quote(encryptedSeatIds)+"&interlockTypeCode="+interlockTypeCode+"&interlockTid="+interlockTid+"&seatIds="+seatId)
                     requestResponse = client.post(strRequestUrl, strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
@@ -540,9 +555,41 @@ def fetch_thread():
                     requestResponse = client.get(strRequestUrl+strRequestParameter)
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
+
+                        strRequestUrl = "https://wcs.naver.com/b"
+                        now_ms = int(time.time() * 1000)
+                        now_sec = now_ms // 1000
+                        prefix, ts = client.session.cookies.get("wcs_bt", domain="tkglobal.melon.com").split(":")
+
+                        payload = {
+                            "wa": str(prefix),  # 可固定（或从_fwb生成）
+                            "u": "https://tkglobal.melon.com/reservation/popup/stepDelvy.htm?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&firstSeatId="+seatId,
+                            "e": "https://tkglobal.melon.com/reservation/popup/stepTicket.htm",
+                            "bt": str(ts),
+                            "os": "Win32",
+                            "ln": "zh-CN",
+                            "sr": "1920x1080",
+                            "bw": 954,
+                            "bh": 653,
+                            "c": 32,
+                            "j": "N",
+                            "jv": "1.8",
+                            "k": "Y",
+                            "ct": "",
+                            "cs": "UTF-8",
+                            "tl": quote("Melon Ticket - Global"),
+                            "vs": "0.8.18",
+                            "nt": now_ms,
+                            "fwb": client.session.cookies.get("_fwb", domain="tkglobal.melon.com"),
+                            "ui": json.dumps({"nac":"hiJEBwAp3uNs"}),
+                            "ext": json.dumps({"wot": random.randint(2000, 4000)})
+                        }
+                        strRequestParameter=json.dumps(payload)
+                        requestResponse = client.post(strRequestUrl, strRequestParameter)
+
                         client.session.cookies.set(
                             "wcs_bt",
-                            f"s_322bdbd6fd48:{int(time.time())}",
+                            f"s_322bdbd6fd48:{now_sec}",
                             domain="tkglobal.melon.com",
                             path="/"
                         )
@@ -808,7 +855,35 @@ def LogMessage(message):
         else:
             print("UI 未初始化")
 
+def gen_wcs_payload():
+    now_sec = int(time.time())
+    now_ms = int(time.time() * 1000)
 
+    payload = {
+        "wa": "s_322bdbd6fd48",  # 可固定（或从_fwb生成）
+        "u": "https://tkglobal.melon.com/reservation/popup/stepDelvy.htm?prodId="+EventID+"&scheduleNo="+sch+"&firstSeatId=100_104",
+        "e": "https://tkglobal.melon.com/reservation/popup/stepTicket.htm",
+        "bt": str(now_sec),
+        "os": "Win32",
+        "ln": "zh-CN",
+        "sr": "1920x1080",
+        "bw": random.randint(900, 1000),
+        "bh": random.randint(600, 700),
+        "c": 32,
+        "j": "N",
+        "jv": "1.8",
+        "k": "Y",
+        "ct": "",
+        "cs": "UTF-8",
+        "tl": "Melon Ticket - Global",
+        "vs": "0.8.18",
+        "nt": now_ms,
+        "fwb": "150r4Q5wK0yq1b5RDTDn7cq.1753524124532",
+        "ui": json.dumps({"nac": "hiJEBwAp3uNs"}),
+        "ext": json.dumps({"wot": random.randint(2000, 4000)})
+    }
+
+    return payload
 #event_handler = LogMessage
 
 
