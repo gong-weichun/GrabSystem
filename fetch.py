@@ -556,36 +556,36 @@ def fetch_thread():
                     if (requestResponse.status_code == 200):
                         strResponseHtml = requestResponse.text
 
-                        strRequestUrl = "https://wcs.naver.com/b"
-                        now_ms = int(time.time() * 1000)
-                        now_sec = now_ms // 1000
-                        prefix, ts = client.session.cookies.get("wcs_bt", domain="tkglobal.melon.com").split(":")
-
-                        payload = {
-                            "wa": str(prefix),  # 可固定（或从_fwb生成）
-                            "u": "https://tkglobal.melon.com/reservation/popup/stepDelvy.htm?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&firstSeatId="+seatId,
-                            "e": "https://tkglobal.melon.com/reservation/popup/stepTicket.htm",
-                            "bt": str(ts),
-                            "os": "Win32",
-                            "ln": "zh-CN",
-                            "sr": "1920x1080",
-                            "bw": 954,
-                            "bh": 653,
-                            "c": 32,
-                            "j": "N",
-                            "jv": "1.8",
-                            "k": "Y",
-                            "ct": "",
-                            "cs": "UTF-8",
-                            "tl": quote("Melon Ticket - Global"),
-                            "vs": "0.8.18",
-                            "nt": now_ms,
-                            "fwb": client.session.cookies.get("_fwb", domain="tkglobal.melon.com"),
-                            "ui": json.dumps({"nac":"hiJEBwAp3uNs"}),
-                            "ext": json.dumps({"wot": random.randint(2000, 4000)})
-                        }
-                        strRequestParameter=json.dumps(payload)
-                        requestResponse = client.post(strRequestUrl, strRequestParameter)
+                        # strRequestUrl = "https://wcs.naver.com/b"
+                        # now_ms = int(time.time() * 1000)
+                        now_sec = int(time.time() * 1000) // 1000
+                        # prefix, ts = client.session.cookies.get("wcs_bt", domain="tkglobal.melon.com").split(":")
+                        #
+                        # payload = {
+                        #     "wa": str(prefix),  # 可固定（或从_fwb生成）
+                        #     "u": "https://tkglobal.melon.com/reservation/popup/stepDelvy.htm?prodId=" + EventID + "&scheduleNo=" + scheduleNo + "&firstSeatId="+seatId,
+                        #     "e": "https://tkglobal.melon.com/reservation/popup/stepTicket.htm",
+                        #     "bt": str(ts),
+                        #     "os": "Win32",
+                        #     "ln": "zh-CN",
+                        #     "sr": "1920x1080",
+                        #     "bw": 954,
+                        #     "bh": 653,
+                        #     "c": 32,
+                        #     "j": "N",
+                        #     "jv": "1.8",
+                        #     "k": "Y",
+                        #     "ct": "",
+                        #     "cs": "UTF-8",
+                        #     "tl": quote("Melon Ticket - Global"),
+                        #     "vs": "0.8.18",
+                        #     "nt": now_ms,
+                        #     "fwb": client.session.cookies.get("_fwb", domain="tkglobal.melon.com"),
+                        #     "ui": json.dumps({"nac":"hiJEBwAp3uNs"}),
+                        #     "ext": json.dumps({"wot": random.randint(2000, 4000)})
+                        # }
+                        # strRequestParameter=json.dumps(payload)
+                        # requestResponse = client.post(strRequestUrl, strRequestParameter)
 
                         client.session.cookies.set(
                             "wcs_bt",
