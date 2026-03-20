@@ -47,7 +47,7 @@ class TLSHttpClient:
                 # 更新Referer
                 self.session.headers["Referer"]=global_resources.referUrl
 
-            #print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
+            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
             response = self.session.get(url)  # ,proxy=proxy
 
             # 更新last_url
@@ -69,7 +69,7 @@ class TLSHttpClient:
                 # 更新Referer
                 self.session.headers["Referer"] = global_resources.referUrl
 
-            #print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
+            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
             response = self.session.post(url, data=data)  # ,json=json,proxy=proxy
 
             if response.status_code == 200:
