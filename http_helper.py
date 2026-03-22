@@ -46,6 +46,7 @@ class TLSHttpClient:
             if global_resources.referUrl != "":
                 # 更新Referer
                 self.session.headers["Referer"]=global_resources.referUrl
+            global_resources.referUrl=""
 
             print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
             response = self.session.get(url)  # ,proxy=proxy
@@ -68,9 +69,28 @@ class TLSHttpClient:
             if global_resources.referUrl != "":
                 # 更新Referer
                 self.session.headers["Referer"] = global_resources.referUrl
+            global_resources.referUrl = ""
 
-            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com")+"——"+url)
-            response = self.session.post(url, data=data)  # ,json=json,proxy=proxy
+            print(self.session.cookies.get("JSESSIONID", domain="tkglobal.melon.com") + "——" + url)
+
+            # ❗关键：禁止自动跳转
+            response = self.session.post(url, data=data, allow_redirects=False)
+
+            # ✅ 处理 302
+            if response.status_code in (301, 302):
+                location = response.headers.get("Location")
+                print("302 ->", location)
+
+                if location:
+                    # 绝对路径处理
+                    if location.startswith("/"):
+                        location = "https://tkglobal.melon.com" + location
+
+                    # 更新 Referer（非常关键）
+                    self.session.headers["Referer"] = url
+
+                    # 手动 GET 跳转
+                    response = self.session.get(location, allow_redirects=False)
 
             if response.status_code == 200:
                 return response
@@ -88,47 +108,44 @@ class TLSHttpClient:
     # ---------------------------
     # 2️⃣ Playwright 使用 tls_client cookies
     # ---------------------------
-    def playwright_request(self,url):
+    def playwright_request(self, url):
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=False)  # headless=True 可不显示浏览器
-            context = browser.new_context()
+            browser = p.chromium.launch(headless=False, channel="chrome")
 
-            # 自动迁移 tls_client cookies
-            cookies = []
-            parsed_url = urlparse(url)
-            domain = parsed_url.hostname
-            for name, value in self.session.cookies.items():
-                cookies.append({
-                    "name": name,
-                    "value": value,
-                    "domain": domain,
-                    "path": "/",
-                    "httpOnly": False,
-                    "secure": True,
-                })
-            # 在 context 创建时设置 user_agent
             context = browser.new_context(
-                user_agent=self.session.headers.get("User-Agent", ""),
+                user_agent=self.session.headers.get("User-Agent", "")
             )
-            context = browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
-            )
-            context.add_cookies(cookies)
 
-            # 新建页面
+            # ✅ 正确提取 cookie（完整属性）
+            playwright_cookies = []
+            for domain, paths in self.session.cookies._cookies.items():
+                for path, cookies in paths.items():
+                    for name, c in cookies.items():
+                        playwright_cookies.append({
+                            "name": c.name,
+                            "value": c.value,
+                            "domain": c.domain,
+                            "path": c.path,
+                            "secure": c.secure,
+                            "httpOnly": False,
+                        })
+
+            # ✅ 注入 cookie
+            context.add_cookies(playwright_cookies)
+
             page = context.new_page()
-            page.goto(url,timeout=60000,wait_until="networkidle")
+
+            # ⭐ 关键：先打主域，避免 session 重建
+            page.goto("https://tkglobal.melon.com", wait_until="domcontentloaded")
+
+            page.goto(url, timeout=60000, wait_until="domcontentloaded")
+
+            print("[playwright] JSESSIONID:",
+                  [c for c in context.cookies() if c["name"] == "JSESSIONID"])
+
             print("[playwright] Page title:", page.title())
 
-            # 获取页面内容
-            content = page.content()
-            print(content[:500])
-
-            # 可以执行 JS
-            # result = page.evaluate("() => document.querySelector('h1').innerText")
-            # print(result)
-
-            #browser.close()
+            return page
 
     # ---------------------------
     # 1️⃣ 用 Playwright 登录并获取 Cookie
