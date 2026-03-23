@@ -10,6 +10,7 @@ import fetch
 from solve_captcha import ocr_image_from_base64
 from ui import UiWindow
 import sys
+import api_load_test
 #pyside6-designer  data:image/png;base64,
 
 #base64code="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARgAAABQCAYAAADC8mo5AAAP90lEQVR42u1daZRVxRGuEZRRQTMCoqiB4I6CUdwQJYggorjESBQUUdzNURQ94BZFCYsbi2KIEpcgBhdcADWCooA6bhBBJW5oBHXihsQdYQLpyqt3HF++eu8udYfxTH3n1J+Z+7r69u2urq2riRwOh8PhcDgcDofD4XA4HA6Hw+FwOBw/CWwSaEcfBofDYYFmgX4daEygBYGqA833YXE4HEmwVaA+gSYEWhxoTaC1BVQtmozD4XAUxXaBBgS6I9A7QJgg4TLfzSSHw1GIskC7Bjo70N2BqiIIlO8DPRNoRKBDXHNxOBx5NAi0Z6BBgR4KtDyCQPkm0BOBLg/UJdCGPowOh4PRKND+gS4J9FigLyMIlBWBHg40ONC+gdb3YXQ4HIyNA3UPNCzQ3EDfRRAoHwe6L9A5gXYLtJ4Po8PhYFQEOjzQtYFeCLQ6gkBZGujOQKeRO2YdDkcNbBGod6AbAy0iHDIupDcDTQzUL1ArH0KHw5FHaxEME0VQlBIm/wm0UAQQC6IWPoQOhyOPnQKdHmhyoGURBAqbRM8HuiZQr0A/8yF0OBwMdqb+MtC5gaZSztlaSqCw03ZOoKsCdaOcU9fhcDj+F+7lsC+HfzkM/O8IAoXDyhxe5jAzh5s38GF0OLJBmez4vEBvCfSI+Bs+lZ2d09qfplxGKpsZFeu4v5yQdmCgKyiXqPZNBIHyWaAHA51PuYS4Bv7Z1x1YPawGH2k7Yz7HAh6vKs/OBc+OzXAMZgF+swmHK/lvWxvybqOo9d/KbmuFlrJIP4iwQAtT2h+gXG5HVri6hH+kVB8/DDQl0FmBdhEhWhOXxnznYrRKBNiSQNPFzNrNxYiOzmAQP8+Az3WAz63KsxPBs9Mzev/uyqRmR+GdyiQbacR7s0BvED74drgRj01lAa9MubBWip/DAhtR7uzOUTKW1TH7wlrW7YFODrRtBH7TDQWMRs+JZugowIVgsB7LgM88wOd05dnB4NnFGZkLLwNe4+X/vBuiHInlskjSoJEyJmtl4Vjg4ED/Ml5I9wANAYEP7+1BuTDvxbKZzBVtY01MnvztucwBlzvYKsE4fFQLAiav3RziIuXHuA8M1FXGPBootrMm8Y8i7PkvM+5XP8CHnYbNajwzTZlMZ6YUbFOUdgcbCc4/lFjIbIItkvcbF+j3omWy72VpiYV0mfBpGmifQMdT7hDfpECVgT4xXLT/SDkWrWpJuNQ81LiNi5UfgCZTL/AcT6bmgdom4NFe+RANled3UT5eS8P3bqS8+4UFz3VU+vJGCoE3SmnzeoP34jH9Swlt4HeBmpRoZz/FN5Wnr1Lu9G8F+iLCs9+m3Fh6gzZZoxkWk0aKFva3QK9QLhlP6/MtLlZy2EIZoBY1dsI9ZXdbXcM/8Zo4QaeI85XDf6eI32Bv2TVqHkc/FfCYV6Rf5coHtHR6ItPwXRE8hZijjFPPBHxPV9qaZKCh8e/vUtrnRXWo8hvecTlSc5r4azifhCNLX6cQIt+JMJsmgvMsMdnaiEZ7iqI9fmW8sSDf310G86d1oJmkR7HKXLwQHQEG5/1Ax8ku+DGlUxc5/2CJYgOz4+0Ayh0UQ5mT/wS/6W/03hXiyC5sv7fyfA/l/WbG5NtTcWg+WkSbi4OxSj8rRRPjBc5FkUbL+C+maCeFi5kDC0UgjZKNpIsIrGILrIkyJy5QfGKdjX1/A43mUUMx4dDYtHXxQjS8lu3TUuFQFm4LZMF9CJ75k2hHaRfjdcoiLIa/K/3eJSLP3ZXdudLAYayZAmvFDFmV4rt8LkIEaZQ3J+zrSNAWm0ycAPcQ+N8AY9/fvoZr6DfKuB3k4oXo8QgT7CPRZo4TH0wL8al0F+feINm9OGzISVvzRVB8n7FAWiMqdZWYNotFOHEZQk7ImiEO7EliE4+Tfo4hnFvBJlM3McM6iOBoI+p5hbwr6scU0cLaiznZKVBXykUTjpSFP5Bwxiknt90gmscEsfEnS7/ZtOBo3pOBng30ktj+b4p2VyWq+NcUPyqDaplUylixs7avmLqb1Zgrk8Hv3k4w535BOGSeD8uPA/8bnnB+76b4f8prwc1wdH0XLmWkp1l/LZGCDiltSTZ9+iiOuwdk4bxN0SqEOaUTxh+IL4mF2MUi+HaP4OzN4wRlscbNkp0K2plV4/8XEA6NJwHyd2VxNQgyMw+o7wJmpyITcoIhn0Gg/WmKY5fNn70oF8VC/oTVBrt1fSAeJy6exOH+Xcmm/usOCq/WMdpASZ3VBWbmMYZC4c+grZuM11EjZVy2re8Cpn+RCXqiIZ+7QfuXRvjdtkrfGosPJm+6bCmmTFvRuDqJqdNLdul+spOdK9oSOq5wr5hUj4uJNV9MrnfEFPk8woJ+RcyYZ8Ss4XDmMmXXZ1NkmGiJg8WEOlN8DcdLv48QM4ujO/uJ+dVOzLHW8v5bKo74SzOYLxsofpiuEX+/nuLHGl/w3F6Eo0tJ8GqGgYI82ivBjXpfg/emIgtme0M+74L2u0V00CHnZPuE/UCRIE4I2yTGAmNzcYgyZicUPD9UES49DMcWhf+XUXYV6zcXH1xNiurPGKA4kJsCHmh8m8Xsa2NFIO5sPCYDAY/73L2b26XXKo5HKzRT/AFRC/qgczpHJegH754LySYbt7Gi0SwooR2uEeeppQ8NhUj71sG5xmOGjixoZ5u+Bc/uE5NnF8IRNev8lAWAT7/6LlzKSQ9dzjDkcyho//UYv59BOFciLk4knNGa9Bj/VcrYsWPvIGVsBxp/w8MIR3XqYoLXCMJHABrG2FiOj8kTnWd7wvi9DiZcDLze15vpWMQ8usSQDzIT7ojx++sNnHTlii+kZ4r3Ys0M5VdUEo7MDc/gGz6V8bezAvuLUFi62KFAlCF7eUy+94M2Rhi+F4fwlwAep7pxhO3GPB1oyOdR0P7ZMX5/BqU/6Y12slkG7zaWokV0Jmbw/VoSLlS9dR2ca/eCvj5c4jeoXMekmHzfB20cafRO7HtapGj/fh9SwF9Jr6bOu+0VRrQC8OgQo59dCWd8xtllVoB3bGcwhttQ6QzZBymbamr9DQRvbeAAwo7uUvcIXUbxM61LCWCLw7KsuQ5RtFSOIjZx0ZLDElo3+RmckBQnfLc1pUvuQiaW5UnX24u861yyzRitCVQI6/w6NsfYF4QCCaMj/BaV0fg4Bm9U7mNlgg3yStFUWXtiZ66WgzXVhcsPaErrLgGsMsEkRb6OKBdfIdufzwJtYTiW2vmf1RQ/rBoHKCKzdx2bZycTjlBGiSB2VsY16iIeWUvzmb9DXxcpP0bPdShgxiToL7J1oyR3obIFlglonAn9WZF3PSmj79eO8NGLupTYxWHpKkqeFqAViYpaknJ2Lcxl1qi2dHHy/xi6DgVMnwT9RRX3Snnq9wDqrGUCGpdtLFX17Y2MHH6ojsqzdWyODVd8FFFNWw5fo7IWx0T4LY/5F7U0n7ku0nYuUn4MFNkZZsyDJxIqVtQmQVsoh6JU0e0nqHSmbVJUyMSKMgF7Z/D9UIX8e+rQ/GpF+PBf3PIFKLXgogi/a1vLmyZnqjd3sfIDkFp/mDEPdEz+s4RtnRRzQR0Cnn+JbBLQWAN6hnDSHiqQ9XIG3+8Gyv4AXxrco4xPj5j0OiUL+SPfz+sJ32VjMYXZaTyziJAZ6WIlB+0AobUERvkrjyRsqxNFP127nuKz6WzwTqyVTVccfbxrn6eMrbXwRnklV9aR+bV/xtrCUxH6MIHSJXcWg1budJGLlhz6gsFZkgGf2yh9JmYezUFbK5RnUX7I/Rm+E5uB+byeJortX2k8tqgE5IUZzpm2op0VUmElvzLRFLMUMMsi9Bed2D7LcDweVjYZB+Hs07sy4IMO4aW5LwYl7BVeaYqOBKwycsKhWwDYCVl4+8Joyj47+hXK/pqZmpgE+D0eUbhnUTirvIQJi6oV7m44HigzfKGLlhyeA4NzjjGPTQknJG2Wos0XqXRGMCqjMNrgfTTTB+2KrQlHPywP2SEf0B8zmi+tlAX7K+CrqKLacaq2jWlOcwi/oeGYIPP/bhctuTwJdOjMOkELXcX6dso2UT3Y39b4PwuvwvTt5ZT+4va+irC8pshvpioLYx+j8UV+oHkZzZnxEXkNI+xYTbOwWyvjWOxK3fPB808bjwm6R3uoi5dcRTSUPm19tBydI5mcss0rqHjIEpkmae9R7kH4rNG9VDwi1UlZGNMyXPT8HRsZf8edlffvDrQcFJY+NCV/LRem2JEIVD3xWuNxQRvIcS5ecqeYs3ZAak6wtGYYKhyeD1lylfrCGwzeonSZrazVoTyeZyna+aIXFf+BxSFL7XaDY4y/45OAx/MRF/Usoz6gZMbxRZ5/txbG5bWMfTw/WaDrRMdkwOfTDMyDDqDN2fI/dDI8zbH8HZV3YKHVNIVAzF9xYuEXWZuxKYD8TtXA79VJea6dUT/mUvRT482VcbG8J7oCmMxrxAdV74ESl4415oHybL43UN83Ae2+JxO+8IPPScGnpbSLDunFiUaxeo/qkXCpCIt6x88ri8ni4F1/xe90dcFzZYqmdrPhfEKbopZWgSr8VRnPb8RjqYsWPbLT2pgPUt9fNGr7I7BY54HdpEPC9vmUL6pCz/6Fjgna04qD32okBFDbHM7fKUW7Zyh+jxfAJoHKkHI1/RaG8wmVJl1N2HmMnn3AeH6PKqJJ12t0I3xjozVQGvuNRm0/TaVDmHckbHtDpf01KWz4CsWPs8pAbS8nvabPJwmE7PaKzyWfRFZYqIlNAnS170XG82kARb9z6DHw3BDj/qAUgdtcvOADctMy4INUZqtDhrdS6YvYt0rQbgMZC9TmoJR91q6GucFgPLpS8XuaxpYYj/VF5Wcf1kqlHb4XaoeI2sJSsi+wpb3jweDZ5eC5Lsb9QbWJhrp4wQvoYmMejQjfR72DUftDSgiYK40F13iDPm+vmKac/LW5QfulCisxb06u5PM5fFRjmGh5s5UFWWjaoj7+nPC1IlmEarWzc2eDcUbO5saGfdlI6cs4Fy+4AlpXYx4dFZ+A1TUaRxdZDFWUzJM/QmlvOtnV0p2h8Bhl1P51ZJ+OP0kWFAKK2j2X0bzVbpMszNBG92ZbH0DULoR7mermVTG1hp8TjmZY1xBFoc2Zhu3vWmRRDEjQnnazwktFFpelmv8lpc80zmOwor7HpTmUu7o1ziaylpI5waPi/QjmPfL93WLcj/VJr8l7Zn0WMOgy8Vcz4IMSriwP4ZUrH5h3qriV4/oobfEp4RYZjM1CZWJebshjG/kG1TGFCp8A56qBvUq0z7v0C5RNbk8xIOf74oJnUNj+lAz68qkyhue5keSoL6gQATpZFt47oi1xuP09+dtDYmZ0J7+F0OFwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcDgcDofD4XA4HA6Hw+FwOBwOh8PhcKx7/BcTJ0r7gupQAgAAAABJRU5ErkJggg=="
@@ -21,17 +22,17 @@ import sys
 #client = TLSHttpClient()
 #client.playwright_login_and_get_cookies("https://tkglobal.melon.com/main/index.htm?langCd=EN")
 
-def get_cookie():
-    strRequestUrl = "https://gmember.melon.com/login/login_form.htm?langCd=EN&redirectUrl=https://tkglobal.melon.com/main/index.htm?langCd=EN"
-    requestResponse = client.get(strRequestUrl)#更新JSESSIONID
-    if requestResponse.status_code == 200:
-        strResponseHtml = requestResponse.text
+# def get_cookie():
+#     strRequestUrl = "https://gmember.melon.com/login/login_form.htm?langCd=EN&redirectUrl=https://tkglobal.melon.com/main/index.htm?langCd=EN"
+#     requestResponse = client.get(strRequestUrl)#更新JSESSIONID
+#     if requestResponse.status_code == 200:
+#         strResponseHtml = requestResponse.text
 
-    strRequestUrl = "https://gmember.melon.com/login/login_proc.htm"
-    strRequestParameter = "rtnUrl=https://tkglobal.melon.com/main/index.htm&langCd=EN&email=&pwd="
-    requestResponse = client.post(strRequestUrl, strRequestParameter)#更新keyCookie_T、MAC_T
-    if requestResponse.status_code == 200:
-        strResponseHtml = requestResponse.text
+#     strRequestUrl = "https://gmember.melon.com/login/login_proc.htm"
+#     strRequestParameter = "rtnUrl=https://tkglobal.melon.com/main/index.htm&langCd=EN&email=&pwd="
+#     requestResponse = client.post(strRequestUrl, strRequestParameter)#更新keyCookie_T、MAC_T
+#     if requestResponse.status_code == 200:
+#         strResponseHtml = requestResponse.text
 
 
 
@@ -40,10 +41,11 @@ client = TLSHttpClient()
 
 u=UiWindow()
 u.start_ui_task()
+api_load_test.main()
 #get_cookie()
-t = threading.Thread(target=fetch.fetch_thread)
-t.daemon = True
-t.start()
+# t = threading.Thread(target=fetch.fetch_thread)
+# t.daemon = True
+# t.start()
 #threading.Thread(target=external.test_output).start()
 
 def start_fetch_thread():
